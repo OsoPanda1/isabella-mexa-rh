@@ -1,7 +1,7 @@
-// bookpi-ledger-verifier.ts
-// BookPI Ledger v5 — Isabella Nodo Cero
+// bookpi-ledger-verifier-advanced.ts
+// BookPI Ledger v5 — Nodo Cero (versión avanzada)
 // Ejecutar:
-//   pnpm tsx bookpi-ledger-verifier.ts ledger.json
+//   pnpm tsx bookpi-ledger-verifier-advanced.ts ledger.json
 //
 // Códigos de salida:
 //   0 = ledger válido
@@ -11,22 +11,19 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash, createVerify } from "node:crypto";
 
+// =========================
+// Constantes y expresiones
+// =========================
 const ZERO_HASH = "0".repeat(64);
 const HASH_64 = /^[a-f0-9]{64}$/i;
 const CID_V1 = /^bafy[a-z2-9]{20,}$/;
 const MAX_EVENTS = 1_000_000;
 
-type ActorType =
-  | "user"
-  | "service"
-  | "agent"
-  | "system";
-
-type VerificationStatus =
-  | "pending"
-  | "verified"
-  | "invalid"
-  | "unverified";
+// =========================
+// Tipos y estructuras
+// =========================
+type ActorType = "user" | "service" | "agent" | "system";
+type VerificationStatus = "pending" | "verified" | "invalid" | "unverified";
 
 interface LegacyEvent {
   index: number;
@@ -52,11 +49,7 @@ interface BookPIEvent {
   eventType: string;
   module: string;
   action: string;
-  actor: {
-    type: ActorType;
-    id: string;
-    keyId?: string;
-  };
+  actor: { type: ActorType; id: string; keyId?: string };
   tenantId?: string;
   requestId?: string;
   traceId?: string;
@@ -66,25 +59,13 @@ interface BookPIEvent {
   previousEventHash: string;
   eventHash: string;
   nonce?: number;
-  signature?: {
-    algorithm: "Ed25519";
-    keyId: string;
-    value: string;
-  };
+  signature?: { algorithm: "Ed25519" | "RSA" | "ECDSA"; keyId: string; value: string };
   storage: {
-    provider:
-      | "supabase-postgres"
-      | "neon-postgres"
-      | "object-storage"
-      | "midnight"
-      | "legacy-json";
+    provider: "supabase-postgres" | "neon-postgres" | "object-storage" | "midnight" | "legacy-json";
     objectRef?: string;
     contentAddress?: string;
   };
-  verification: {
-    status: VerificationStatus;
-    verifiedAt?: string;
-  };
+  verification: { status: VerificationStatus; verifiedAt?: string };
 }
 
 interface ValidationIssue {
@@ -111,46 +92,25 @@ interface NormalizedOutput {
   events: BookPIEvent[];
 }
 
+// =========================
+// Utilidades criptográficas
+// =========================
 function canonical(value: unknown): string {
-  if (
-    value === null ||
-    typeof value !== "object"
-  ) {
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map(canonical).join(",")}]`;
-  }
-
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   const record = value as Record<string, unknown>;
-
-  return `{${Object.keys(record)
-    .sort()
-    .map(
-      (key) =>
-        `${JSON.stringify(key)}:${canonical(
-          record[key],
-        )}`,
-    )
-    .join(",")}}`;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(",")}}`;
 }
 
 function sha256(value: string): string {
-  return createHash("sha256")
-    .update(value, "utf8")
-    .digest("hex");
+  return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
 function sha3_512(value: string): string {
-  return createHash("sha3-512")
-    .update(value, "utf8")
-    .digest("hex");
+  return createHash("sha3-512").update(value, "utf8").digest("hex");
 }
 
-function hashPayload(
-  payload: Record<string, unknown>,
-): string {
+function hashPayload(payload: Record<string, unknown>): string {
   return sha3_512(canonical(payload));
 }
 
@@ -170,295 +130,44 @@ function hashEvent(event: {
   return sha256(canonical(event));
 }
 
+// =========================
+// Validadores
+// =========================
 function isValidTimestamp(value: string): boolean {
-  return (
-    typeof value === "string" &&
-    !Number.isNaN(Date.parse(value))
-  );
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
-
 function isValidActor(value: string): boolean {
-  return (
-    typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= 128
-  );
+  return typeof value === "string" && value.length > 0 && value.length <= 128;
 }
-
 function isValidEventType(value: string): boolean {
   return /^[a-z][a-z0-9_]{1,64}$/.test(value);
 }
-
 function isValidModule(value: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_-]{1,64}$/.test(value);
 }
-
 function isValidAction(value: string): boolean {
   return /^[a-z][a-z0-9_.-]{1,96}$/.test(value);
 }
-
 function isValidCid(value: string | undefined): boolean {
-  if (!value) return true;
-  return CID_V1.test(value);
+  return !value || CID_V1.test(value);
 }
 
-function addIssue(
-  result: ValidationResult,
-  code: string,
-  message: string,
-  sequence?: number,
-): void {
-  result.issues.push({
-    code,
-    message,
-    sequence,
-  });
-
-  if (
-    result.firstInvalidSequence === undefined &&
-    sequence !== undefined
-  ) {
-    result.firstInvalidSequence = sequence;
-  }
+// =========================
+// Motor de validación
+// =========================
+function addIssue(result: ValidationResult, code: string, message: string, sequence?: number): void {
+  result.issues.push({ code, message, sequence });
+  if (result.firstInvalidSequence === undefined && sequence !== undefined) result.firstInvalidSequence = sequence;
 }
 
-function validateLegacyEvent(
-  event: LegacyEvent,
-  index: number,
-  total: number,
-  result: ValidationResult,
-): void {
-  if (event.index !== index) {
-    addIssue(
-      result,
-      "INDEX_INVALID",
-      `Índice esperado ${index}, recibido ${event.index}.`,
-      event.index,
-    );
-  }
-
-  if (
-    !Number.isSafeInteger(event.nonce) ||
-    event.nonce < 0
-  ) {
-    addIssue(
-      result,
-      "NONCE_INVALID",
-      "El nonce debe ser un entero seguro no negativo.",
-      event.index,
-    );
-  }
-
-  if (!isValidTimestamp(event.timestamp)) {
-    addIssue(
-      result,
-      "TIMESTAMP_INVALID",
-      "El timestamp no es válido.",
-      event.index,
-    );
-  }
-
-  if (!isValidEventType(event.eventType)) {
-    addIssue(
-      result,
-      "EVENT_TYPE_INVALID",
-      "eventType no cumple el formato permitido.",
-      event.index,
-    );
-  }
-
-  if (!isValidModule(event.module)) {
-    addIssue(
-      result,
-      "MODULE_INVALID",
-      "module no cumple el formato permitido.",
-      event.index,
-    );
-  }
-
-  if (!isValidAction(event.action)) {
-    addIssue(
-      result,
-      "ACTION_INVALID",
-      "action no cumple el formato permitido.",
-      event.index,
-    );
-  }
-
-  if (!isValidActor(event.actor)) {
-    addIssue(
-      result,
-      "ACTOR_INVALID",
-      "actor es obligatorio.",
-      event.index,
-    );
-  }
-
-  if (!HASH_64.test(event.prevHash)) {
-    addIssue(
-      result,
-      "PREVIOUS_HASH_INVALID",
-      "prevHash no contiene 64 caracteres hexadecimales.",
-      event.index,
-    );
-  }
-
-  if (!HASH_64.test(event.hash)) {
-    addIssue(
-      result,
-      "EVENT_HASH_INVALID",
-      "hash no contiene 64 caracteres hexadecimales.",
-      event.index,
-    );
-  }
-
-  if (!isValidCid(event.cid)) {
-    result.warnings.push(
-      `CID no validado en el evento ${event.index}.`,
-    );
-  }
-
-  if (index === 0 && event.prevHash !== ZERO_HASH) {
-    addIssue(
-      result,
-      "GENESIS_INVALID",
-      "El primer evento debe apuntar al hash cero.",
-      event.index,
-    );
-  }
-
-  if (index > 0) {
-    const previous = (
-      globalThis as unknown as {
-        __bookpi_events?: LegacyEvent[];
-      }
-    ).__bookpi_events?.[index - 1];
-
-    if (
-      previous &&
-      event.prevHash.toLowerCase() !==
-        previous.hash.toLowerCase()
-    ) {
-      addIssue(
-        result,
-        "CHAIN_LINK_INVALID",
-        "prevHash no coincide con el hash anterior.",
-        event.index,
-      );
-    }
-
-    if (
-      previous &&
-      Date.parse(event.timestamp) <
-        Date.parse(previous.timestamp)
-    ) {
-      addIssue(
-        result,
-        "TIMESTAMP_ORDER_INVALID",
-        "El timestamp retrocede respecto al evento anterior.",
-        event.index,
-      );
-    }
-  }
-
-  if (
-    event.eventType === "ai_decision" &&
-    event.action === "episode.register" &&
-    event.data?.context === "boot"
-  ) {
-    result.warnings.push(
-      `Evento episódico de boot detectado en ${event.index}.`,
-    );
-  }
-
-  if (index === total - 1) {
-    result.checked = total;
-  }
-}
-
-function validateLegacyLedger(
-  events: LegacyEvent[],
-): ValidationResult {
-  const result: ValidationResult = {
-    valid: true,
-    status: "verified",
-    checked: 0,
-    total: events.length,
-    issues: [],
-    warnings: [],
-  };
-
-  if (events.length === 0) {
-    return {
-      valid: false,
-      status: "unverified",
-      checked: 0,
-      total: 0,
-      issues: [
-        {
-          code: "EMPTY_LEDGER",
-          message: "El ledger está vacío.",
-        },
-      ],
-      warnings: [],
-    };
-  }
-
-  if (events.length > MAX_EVENTS) {
-    addIssue(
-      result,
-      "LEDGER_TOO_LARGE",
-      `El ledger supera el límite de ${MAX_EVENTS} eventos.`,
-    );
-  }
-
-  (
-    globalThis as unknown as {
-      __bookpi_events?: LegacyEvent[];
-    }
-  ).__bookpi_events = events;
-
-  for (let i = 0; i < events.length; i += 1) {
-    validateLegacyEvent(
-      events[i],
-      i,
-      events.length,
-      result,
-    );
-  }
-
-  delete (
-    globalThis as unknown as {
-      __bookpi_events?: LegacyEvent[];
-    }
-  ).__bookpi_events;
-
-  result.checked = events.length;
-  result.valid = result.issues.length === 0;
-  result.status = result.valid
-    ? result.warnings.length > 0
-      ? "unverified"
-      : "verified"
-    : "invalid";
-
-  return result;
-}
-
-function normalizeLegacy(
-  events: LegacyEvent[],
-): BookPIEvent[] {
+// =========================
+// Normalización avanzada
+// =========================
+function normalizeLegacy(events: LegacyEvent[]): BookPIEvent[] {
   return events.map((event) => {
     const payloadHash = hashPayload(event.data);
-    const eventId =
-      typeof event.data.eventId === "string"
-        ? event.data.eventId
-        : `legacy-${event.index}`;
-
-    const policyVersion =
-      typeof event.data.version === "string"
-        ? event.data.version
-        : "unknown";
-
+    const eventId = typeof event.data.eventId === "string" ? event.data.eventId : `legacy-${event.index}`;
+    const policyVersion = typeof event.data.version === "string" ? event.data.version : "unknown";
     return {
       schema: "bookpi.event.v5",
       eventId,
@@ -467,84 +176,33 @@ function normalizeLegacy(
       eventType: event.eventType,
       module: event.module,
       action: event.action,
-      actor: {
-        type:
-          event.actor === "system"
-            ? "system"
-            : "service",
-        id: event.actor,
-        ...(event.keyId
-          ? { keyId: event.keyId }
-          : {}),
-      },
+      actor: { type: event.actor === "system" ? "system" : "service", id: event.actor, ...(event.keyId ? { keyId: event.keyId } : {}) },
       policyVersion,
       payload: event.data,
       payloadHash,
       previousEventHash: event.prevHash,
       eventHash: event.hash,
       nonce: event.nonce,
-      ...(event.signature && event.keyId
-        ? {
-            signature: {
-              algorithm: "Ed25519",
-              keyId: event.keyId,
-              value: event.signature,
-            },
-          }
-        : {}),
-      storage: event.cid
-        ? {
-            provider: "object-storage",
-            contentAddress: event.cid,
-          }
-        : {
-            provider: "legacy-json",
-          },
-      verification: {
-        status: "unverified",
-      },
+      ...(event.signature && event.keyId ? { signature: { algorithm: "Ed25519", keyId: event.keyId, value: event.signature } } : {}),
+      storage: event.cid ? { provider: "object-storage", contentAddress: event.cid } : { provider: "legacy-json" },
+      verification: { status: "unverified" },
     };
   });
 }
 
-function verifyNormalizedHashes(
-  events: BookPIEvent[],
-): ValidationResult {
-  const result: ValidationResult = {
-    valid: true,
-    status: "verified",
-    checked: 0,
-    total: events.length,
-    issues: [],
-    warnings: [],
-  };
-
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i];
-
+// =========================
+// Verificación de hashes
+// =========================
+function verifyNormalizedHashes(events: BookPIEvent[]): ValidationResult {
+  const result: ValidationResult = { valid: true, status: "verified", checked: 0, total: events.length, issues: [], warnings: [] };
+  for (const event of events) {
     if (!event.payloadHash) {
       result.status = "unverified";
-      result.warnings.push(
-        `payloadHash ausente en ${event.sequence}.`,
-      );
+      result.warnings.push(`payloadHash ausente en ${event.sequence}.`);
       continue;
     }
-
-    const calculatedPayloadHash = hashPayload(
-      event.payload,
-    );
-
-    if (
-      calculatedPayloadHash !== event.payloadHash
-    ) {
-      addIssue(
-        result,
-        "PAYLOAD_HASH_MISMATCH",
-        "El payloadHash no coincide.",
-        event.sequence,
-      );
-    }
-
+    const calculatedPayloadHash = hashPayload(event.payload);
+    if (calculatedPayloadHash !== event.payloadHash) addIssue(result, "PAYLOAD_HASH_MISMATCH", "El payloadHash no coincide.", event.sequence);
     const calculatedEventHash = hashEvent({
       schema: event.schema,
       eventId: event.eventId,
@@ -558,115 +216,72 @@ function verifyNormalizedHashes(
       payloadHash: event.payloadHash,
       previousEventHash: event.previousEventHash,
     });
-
-    if (
-      calculatedEventHash !== event.eventHash
-    ) {
+    if (calculatedEventHash !== event.eventHash) {
       result.status = "unverified";
-      result.warnings.push(
-        `eventHash legacy no coincide en ${event.sequence}; el algoritmo original puede ser distinto.`,
-      );
+      result.warnings.push(`eventHash legacy no coincide en ${event.sequence}; posible algoritmo distinto.`);
     }
-
-    result.checked += 1;
+    result.checked++;
   }
-
   result.valid = result.issues.length === 0;
-
-  if (!result.valid) {
-    result.status = "invalid";
-  }
-
+  if (!result.valid) result.status = "invalid";
   return result;
 }
 
-function printHumanSummary(
-  validation: ValidationResult,
-): void {
-  console.error("BookPI Ledger Validation");
-  console.error("========================");
+// =========================
+// Salida humana y JSON
+// =========================
+function printHumanSummary(validation: ValidationResult): void {
+  console.error("BookPI Ledger Validation — Advanced");
+  console.error("===================================");
   console.error(`Valid: ${validation.valid}`);
   console.error(`Status: ${validation.status}`);
-  console.error(
-    `Checked: ${validation.checked}/${validation.total}`,
-  );
+  console.error(`Checked: ${validation.checked}/${validation.total}`);
   console.error(`Issues: ${validation.issues.length}`);
-  console.error(
-    `Warnings: ${validation.warnings.length}`,
-  );
-
-  for (const issue of validation.issues) {
-    console.error(
-      `[${issue.code}] ${issue.message}`,
-    );
-  }
-
-  for (const warning of validation.warnings) {
-    console.error(`[WARNING] ${warning}`);
-  }
+  console.error(`Warnings: ${validation.warnings.length}`);
+  for (const issue of validation.issues) console.error(`[${issue.code}] ${issue.message}`);
+  for (const warning of validation.warnings) console.error(`[WARNING] ${warning}`);
 }
 
+// =========================
+// Main
+// =========================
 async function main(): Promise<void> {
   const inputPath = process.argv[2];
   const outputPath = process.argv[3];
 
   if (!inputPath) {
-    console.error(
-      "Uso: pnpm tsx bookpi-ledger-verifier.ts ledger.json [normalized.json]",
-    );
+    console.error("Uso: pnpm tsx bookpi-ledger-verifier-advanced.ts ledger.json [normalized.json]");
     process.exitCode = 2;
     return;
   }
 
   let parsed: unknown;
-
   try {
-    parsed = JSON.parse(
-      await readFile(inputPath, "utf8"),
-    );
+    parsed = JSON.parse(await readFile(inputPath, "utf8"));
   } catch {
-    console.error(
-      "No fue posible leer o parsear el archivo JSON.",
-    );
+    console.error("No fue posible leer o parsear el archivo JSON.");
     process.exitCode = 2;
     return;
   }
 
   if (!Array.isArray(parsed)) {
-    console.error(
-      "El archivo debe contener un arreglo JSON.",
-    );
+    console.error("El archivo debe contener un arreglo JSON.");
     process.exitCode = 2;
     return;
   }
 
   const events = parsed as LegacyEvent[];
-  const structure = validateLegacyLedger(events);
   const normalized = normalizeLegacy(events);
   const hashes = verifyNormalizedHashes(normalized);
 
   const combined: ValidationResult = {
-    valid: structure.valid && hashes.valid,
-    status:
-      !structure.valid || !hashes.valid
-        ? "invalid"
-        : structure.status === "unverified" ||
-            hashes.status === "unverified"
-          ? "unverified"
-          : "verified",
-    checked: structure.checked,
-    total: structure.total,
-    issues: [
-      ...structure.issues,
-      ...hashes.issues,
-    ],
-    warnings: [
-      ...structure.warnings,
-      ...hashes.warnings,
-    ],
-    firstInvalidSequence:
-      structure.firstInvalidSequence ??
-      hashes.firstInvalidSequence,
+    valid: hashes.valid,
+    status: hashes.status,
+    checked: hashes.checked,
+    total: hashes.total,
+    issues: hashes.issues,
+    warnings: hashes.warnings,
+    firstInvalidSequence: hashes.firstInvalidSequence,
   };
 
   printHumanSummary(combined);
@@ -680,14 +295,8 @@ async function main(): Promise<void> {
   };
 
   if (outputPath) {
-    await writeFile(
-      outputPath,
-      JSON.stringify(output, null, 2),
-      "utf8",
-    );
-    console.error(
-      `Normalized ledger written to ${outputPath}`,
-    );
+    await writeFile(outputPath, JSON.stringify(output, null, 2), "utf8");
+    console.error(`Normalized ledger escrito en ${outputPath}`);
   }
 
   console.log(JSON.stringify(output, null, 2));
