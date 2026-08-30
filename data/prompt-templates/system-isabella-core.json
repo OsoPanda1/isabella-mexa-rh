@@ -1,0 +1,1615 @@
+#!/usr/bin/env python3
+"""
+Isabella Quantum Bridge v6.
+
+Runtime híbrido clásico-cuántico con:
+- autorización HMAC;
+- manifiestos Ed25519;
+- anti-replay;
+- SQLite audit;
+- provenance SHA3-512;
+- validación estricta;
+- PennyLane real;
+- fallback clásico determinista;
+- JSONL persistente por stdio.
+
+No contiene mock data.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import hmac
+import importlib.util
+import json
+import math
+import os
+import platform
+import secrets
+import sqlite3
+import sys
+import time
+import uuid
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+
+SYSTEM_IDENTIFIER = "isabella-core"
+POLICY_ID = "EOCT_STRICT_V2"
+BRIDGE_VERSION = "quantum-bridge-v6"
+REQUEST_SCHEMA = "isabella.quantum.request.v6"
+RESPONSE_SCHEMA = "isabella.quantum.response.v6"
+
+MAX_INPUT_BYTES = int(
+    os.getenv("QUANTUM_MAX_INPUT_BYTES", "131072")
+)
+
+MAX_OUTPUT_BYTES = int(
+    os.getenv("QUANTUM_MAX_OUTPUT_BYTES", "4194304")
+)
+
+MAX_WIRES = int(
+    os.getenv("QUANTUM_MAX_WIRES", "32")
+)
+
+MAX_SHOTS = int(
+    os.getenv("QUANTUM_MAX_SHOTS", "500000")
+)
+
+MAX_FEATURES = int(
+    os.getenv("QUANTUM_MAX_FEATURES", "64")
+)
+
+MAX_WEIGHTS = int(
+    os.getenv("QUANTUM_MAX_WEIGHTS", "128")
+)
+
+MAX_LATENCY_MS = int(
+    os.getenv("QUANTUM_MAX_LATENCY_MS", "45000")
+)
+
+WORKER_ID = os.getenv(
+    "ISABELLA_WORKER_ID",
+    "isabella-worker",
+)
+
+AUDIT_DB = Path(
+    os.getenv(
+        "ISABELLA_AUDIT_DB",
+        "./data/isabella-audit.db",
+    )
+)
+
+KEY_DIR = Path(
+    os.getenv(
+        "ISABELLA_KEY_DIR",
+        "./secrets/isabella",
+    )
+)
+
+AUTH_SECRET = os.getenv(
+    "ISABELLA_AUTH_SECRET",
+)
+
+
+class Federation(str, Enum):
+    SECURITY = "SECURITY_IDENTITY_FEDERATION"
+    GOVERNANCE = "GOVERNANCE_POLICY_FEDERATION"
+    DEVICE = "DEVICE_MESH_FEDERATION"
+    TELEMETRY = "TELEMETRY_FEDERATION"
+    RESILIENCE = "RESILIENCE_FALLBACK_FEDERATION"
+    STORAGE = "STORAGE_STATE_FEDERATION"
+    QUANTUM = "QUANTUM_ENGINE_FEDERATION"
+
+
+class Status(str, Enum):
+    OK = "ok"
+    DEGRADED = "degraded"
+    REJECTED = "rejected"
+    ERROR = "error"
+
+
+class ExecutionMode(str, Enum):
+    QUANTUM_SIMULATOR = "quantum_simulator"
+    QUANTUM_HARDWARE = "quantum_hardware"
+    CLASSICAL_FALLBACK = "classical_fallback"
+    DIAGNOSTIC = "diagnostic"
+    REJECTED = "rejected"
+
+
+class BridgeError(Exception):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        federation: Federation,
+        *,
+        retryable: bool = False,
+        status: int = 400,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.federation = federation
+        self.retryable = retryable
+        self.status = status
+
+
+@dataclass(frozen=True)
+class DeviceSpec:
+    name: str
+    implementation: str
+    modules: tuple[str, ...]
+    required_scopes: tuple[str, ...]
+    remote: bool
+    mode: ExecutionMode
+
+
+@dataclass(frozen=True)
+class QuantumRequest:
+    schema: str
+    request_id: str
+    tenant_id: str
+    actor_id: str
+    task: str
+    provider: str
+    wires: int
+    shots: int | None
+    features: tuple[float, ...]
+    weights: tuple[float, ...]
+    scopes: tuple[str, ...]
+    ansatz: str
+    policy_version: str
+    nonce: str
+    timestamp: int
+    request_hash: str
+    circuit_hash: str
+
+
+DEVICE_REGISTRY: dict[str, DeviceSpec] = {
+    "default.qubit": DeviceSpec(
+        name="default.qubit",
+        implementation="PENNYLANE_SIMULATOR",
+        modules=("pennylane",),
+        required_scopes=("quantum:execute",),
+        remote=False,
+        mode=ExecutionMode.QUANTUM_SIMULATOR,
+    ),
+    "lightning.qubit": DeviceSpec(
+        name="lightning.qubit",
+        implementation="PENNYLANE_LIGHTNING",
+        modules=("pennylane", "pennylane_lightning"),
+        required_scopes=(
+            "quantum:execute",
+            "quantum:lightning",
+        ),
+        remote=False,
+        mode=ExecutionMode.QUANTUM_SIMULATOR,
+    ),
+    "qiskit.aer": DeviceSpec(
+        name="qiskit.aer",
+        implementation="PENNYLANE_QISKIT_AER",
+        modules=("pennylane", "pennylane_qiskit"),
+        required_scopes=(
+            "quantum:execute",
+            "quantum:qiskit",
+        ),
+        remote=False,
+        mode=ExecutionMode.QUANTUM_SIMULATOR,
+    ),
+}
+
+
+def fail(
+    code: str,
+    message: str,
+    federation: Federation,
+    *,
+    retryable: bool = False,
+    status: int = 400,
+) -> None:
+    raise BridgeError(
+        code,
+        message,
+        federation,
+        retryable=retryable,
+        status=status,
+    )
+
+
+def canonical_bytes(value: Any) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        fail(
+            "CANONICALIZATION_FAILED",
+            str(error),
+            Federation.STORAGE,
+        )
+
+
+def sha3_512(value: Any) -> str:
+    digest = hashlib.sha3_512(
+        canonical_bytes(value)
+    ).hexdigest()
+
+    return f"sha3-512:{digest}"
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def parse_string(
+    value: Any,
+    field: str,
+    *,
+    maximum: int = 256,
+    default: str | None = None,
+) -> str:
+    if value is None and default is not None:
+        value = default
+
+    if not isinstance(value, str):
+        fail(
+            "INVALID_FIELD",
+            f"{field} must be a string",
+            Federation.SECURITY,
+        )
+
+    value = value.strip()
+
+    if not value:
+        fail(
+            "EMPTY_FIELD",
+            f"{field} cannot be empty",
+            Federation.SECURITY,
+        )
+
+    if len(value) > maximum:
+        fail(
+            "FIELD_TOO_LONG",
+            f"{field} exceeds {maximum} characters",
+            Federation.SECURITY,
+        )
+
+    return value
+
+
+def parse_number(
+    value: Any,
+    field: str,
+) -> float:
+    if isinstance(value, bool):
+        fail(
+            "INVALID_NUMBER",
+            f"{field} must be numeric",
+            Federation.GOVERNANCE,
+        )
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as error:
+        fail(
+            "INVALID_NUMBER",
+            f"{field} must be numeric",
+            Federation.GOVERNANCE,
+        )
+        raise error
+
+    if not math.isfinite(number):
+        fail(
+            "NON_FINITE_NUMBER",
+            f"{field} must be finite",
+            Federation.GOVERNANCE,
+        )
+
+    return number
+
+
+def parse_int(
+    value: Any,
+    field: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if isinstance(value, bool):
+        fail(
+            "INVALID_INTEGER",
+            f"{field} must be an integer",
+            Federation.GOVERNANCE,
+        )
+
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as error:
+        fail(
+            "INVALID_INTEGER",
+            f"{field} must be an integer",
+            Federation.GOVERNANCE,
+        )
+        raise error
+
+    if not minimum <= parsed <= maximum:
+        fail(
+            f"{field.upper()}_LIMIT_EXCEEDED",
+            f"{field} must be between {minimum} and {maximum}",
+            Federation.GOVERNANCE,
+        )
+
+    return parsed
+
+
+def parse_numbers(
+    value: Any,
+    field: str,
+    maximum: int,
+) -> tuple[float, ...]:
+    if value is None:
+        return ()
+
+    if not isinstance(value, list):
+        fail(
+            "INVALID_ARRAY",
+            f"{field} must be an array",
+            Federation.GOVERNANCE,
+        )
+
+    if len(value) > maximum:
+        fail(
+            "ARRAY_LIMIT_EXCEEDED",
+            f"{field} exceeds {maximum} elements",
+            Federation.GOVERNANCE,
+        )
+
+    return tuple(
+        parse_number(item, field)
+        for item in value
+    )
+
+
+class ReplayGuard:
+    def __init__(self) -> None:
+        self._seen: dict[str, int] = {}
+
+    def validate(
+        self,
+        nonce: str,
+        timestamp: int,
+        ttl_seconds: int = 300,
+    ) -> None:
+        now = int(time.time())
+
+        if abs(now - timestamp) > ttl_seconds:
+            fail(
+                "REQUEST_TIMESTAMP_EXPIRED",
+                "Request timestamp is outside the replay window",
+                Federation.SECURITY,
+            )
+
+        self._purge(now, ttl_seconds)
+
+        if nonce in self._seen:
+            fail(
+                "REPLAY_DETECTED",
+                "Request nonce has already been used",
+                Federation.SECURITY,
+            )
+
+        self._seen[nonce] = now
+
+    def _purge(
+        self,
+        now: int,
+        ttl_seconds: int,
+    ) -> None:
+        expired = [
+            nonce
+            for nonce, created in self._seen.items()
+            if now - created > ttl_seconds
+        ]
+
+        for nonce in expired:
+            del self._seen[nonce]
+
+
+class Authorization:
+    @staticmethod
+    def verify_request(
+        raw: dict[str, Any],
+    ) -> None:
+        if not AUTH_SECRET:
+            fail(
+                "AUTH_SECRET_NOT_CONFIGURED",
+                "Internal authorization secret is not configured",
+                Federation.SECURITY,
+                status=500,
+            )
+
+        signature = raw.get("authorizationSignature")
+        timestamp = raw.get("timestamp")
+        nonce = raw.get("nonce")
+
+        if not isinstance(signature, str):
+            fail(
+                "MISSING_AUTHORIZATION_SIGNATURE",
+                "authorizationSignature is required",
+                Federation.SECURITY,
+            )
+
+        if not isinstance(timestamp, int):
+            fail(
+                "INVALID_AUTHORIZATION_TIMESTAMP",
+                "timestamp must be an integer",
+                Federation.SECURITY,
+            )
+
+        if not isinstance(nonce, str):
+            fail(
+                "MISSING_AUTHORIZATION_NONCE",
+                "nonce is required",
+                Federation.SECURITY,
+            )
+
+        material = {
+            key: value
+            for key, value in raw.items()
+            if key != "authorizationSignature"
+        }
+
+        expected = hmac.new(
+            AUTH_SECRET.encode("utf-8"),
+            canonical_bytes(material),
+            hashlib.sha256,
+        ).hexdigest()
+
+        if not hmac.compare_digest(
+            expected,
+            signature,
+        ):
+            fail(
+                "INVALID_AUTHORIZATION_SIGNATURE",
+                "Request signature is invalid",
+                Federation.SECURITY,
+                status=401,
+            )
+
+
+class ManifestVerifier:
+    @staticmethod
+    def verify(
+        manifest: Any,
+    ) -> str:
+        if not isinstance(manifest, dict):
+            fail(
+                "MISSING_ARTIFACT_MANIFEST",
+                "Signed artifact manifest is required",
+                Federation.SECURITY,
+            )
+
+        algorithm = manifest.get("algorithm")
+        key_id = manifest.get("keyId")
+        payload = manifest.get("payload")
+        signature = manifest.get("signature")
+
+        if algorithm != "Ed25519":
+            fail(
+                "UNSUPPORTED_MANIFEST_ALGORITHM",
+                "Manifest must use Ed25519",
+                Federation.SECURITY,
+            )
+
+        if not isinstance(key_id, str):
+            fail(
+                "INVALID_MANIFEST_KEY_ID",
+                "Manifest keyId is required",
+                Federation.SECURITY,
+            )
+
+        if not isinstance(payload, dict):
+            fail(
+                "INVALID_MANIFEST_PAYLOAD",
+                "Manifest payload must be an object",
+                Federation.SECURITY,
+            )
+
+        if not isinstance(signature, str):
+            fail(
+                "MISSING_MANIFEST_SIGNATURE",
+                "Manifest signature is required",
+                Federation.SECURITY,
+            )
+
+        public_key_path = KEY_DIR / "manifest-public.pem"
+
+        if not public_key_path.exists():
+            fail(
+                "MANIFEST_PUBLIC_KEY_NOT_FOUND",
+                "Manifest public key is not available",
+                Federation.SECURITY,
+                status=500,
+            )
+
+        try:
+            from cryptography.hazmat.primitives import (
+                serialization,
+            )
+
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+                Ed25519PublicKey,
+            )
+
+            public_key = serialization.load_pem_public_key(
+                public_key_path.read_bytes()
+            )
+
+            if not isinstance(
+                public_key,
+                Ed25519PublicKey,
+            ):
+                fail(
+                    "INVALID_MANIFEST_PUBLIC_KEY",
+                    "Manifest key is not Ed25519",
+                    Federation.SECURITY,
+                )
+
+            public_key.verify(
+                base64.b64decode(signature),
+                canonical_bytes(payload),
+            )
+
+            return "MANIFEST_VERIFIED"
+
+        except BridgeError:
+            raise
+        except Exception:
+            fail(
+                "MANIFEST_SIGNATURE_MISMATCH",
+                "Manifest signature verification failed",
+                Federation.SECURITY,
+            )
+
+
+class DeviceMesh:
+    @staticmethod
+    def resolve(
+        provider: str,
+    ) -> DeviceSpec:
+        spec = DEVICE_REGISTRY.get(provider)
+
+        if not spec:
+            fail(
+                "UNSUPPORTED_DEVICE",
+                f"Provider {provider} is not registered",
+                Federation.DEVICE,
+            )
+
+        for module in spec.modules:
+            if importlib.util.find_spec(module) is None:
+                fail(
+                    "ADAPTER_MODULE_MISSING",
+                    f"Missing dependency: {module}",
+                    Federation.DEVICE,
+                    retryable=True,
+                    status=503,
+                )
+
+        return spec
+
+    @staticmethod
+    def diagnostics() -> dict[str, Any]:
+        result: dict[str, Any] = {}
+
+        for name, spec in DEVICE_REGISTRY.items():
+            modules = {
+                module: (
+                    importlib.util.find_spec(module)
+                    is not None
+                )
+                for module in spec.modules
+            }
+
+            result[name] = {
+                "provider": name,
+                "implementation": spec.implementation,
+                "available": all(modules.values()),
+                "executionMode": spec.mode.value,
+                "remote": spec.remote,
+                "modules": modules,
+                "requiredScopes": spec.required_scopes,
+            }
+
+        return result
+
+
+class AuditStore:
+    def __init__(
+        self,
+        path: Path,
+    ) -> None:
+        path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        self.connection = sqlite3.connect(
+            str(path),
+            check_same_thread=False,
+        )
+
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL UNIQUE,
+                event_type TEXT NOT NULL,
+                request_id TEXT,
+                tenant_id TEXT,
+                actor_id TEXT,
+                payload_hash TEXT NOT NULL,
+                previous_hash TEXT,
+                event_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
+
+        self.connection.commit()
+
+    def append(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        event_id = f"evt-{uuid.uuid4()}"
+        created_at = int(time.time())
+
+        previous = self.connection.execute(
+            """
+            SELECT event_hash
+            FROM audit_events
+            ORDER BY sequence DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        previous_hash = previous[0] if previous else None
+        payload_hash = sha3_512(payload)
+
+        event_material = {
+            "eventId": event_id,
+            "eventType": event_type,
+            "payloadHash": payload_hash,
+            "previousHash": previous_hash,
+            "createdAt": created_at,
+        }
+
+        event_hash = sha3_512(event_material)
+        payload_json = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+        self.connection.execute(
+            """
+            INSERT INTO audit_events (
+                event_id,
+                event_type,
+                request_id,
+                tenant_id,
+                actor_id,
+                payload_hash,
+                previous_hash,
+                event_hash,
+                payload_json,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                event_type,
+                payload.get("requestId"),
+                payload.get("tenantId"),
+                payload.get("actorId"),
+                payload_hash,
+                previous_hash,
+                event_hash,
+                payload_json,
+                created_at,
+            ),
+        )
+
+        self.connection.commit()
+
+        return {
+            "eventId": event_id,
+            "payloadHash": payload_hash,
+            "previousHash": previous_hash,
+            "eventHash": event_hash,
+            "createdAt": created_at,
+        }
+
+    def verify_chain(self) -> dict[str, Any]:
+        rows = self.connection.execute(
+            """
+            SELECT
+                event_id,
+                event_type,
+                payload_hash,
+                previous_hash,
+                event_hash,
+                created_at
+            FROM audit_events
+            ORDER BY sequence ASC
+            """
+        ).fetchall()
+
+        previous_hash = None
+
+        for index, row in enumerate(rows):
+            (
+                event_id,
+                event_type,
+                payload_hash,
+                stored_previous,
+                stored_hash,
+                created_at,
+            ) = row
+
+            if stored_previous != previous_hash:
+                return {
+                    "valid": False,
+                    "failureIndex": index,
+                    "eventId": event_id,
+                    "reason": "PREVIOUS_HASH_MISMATCH",
+                }
+
+            material = {
+                "eventId": event_id,
+                "eventType": event_type,
+                "payloadHash": payload_hash,
+                "previousHash": stored_previous,
+                "createdAt": created_at,
+            }
+
+            expected_hash = sha3_512(material)
+
+            if not hmac.compare_digest(
+                expected_hash,
+                stored_hash,
+            ):
+                return {
+                    "valid": False,
+                    "failureIndex": index,
+                    "eventId": event_id,
+                    "reason": "EVENT_HASH_MISMATCH",
+                }
+
+            previous_hash = stored_hash
+
+        return {
+            "valid": True,
+            "events": len(rows),
+            "lastHash": previous_hash,
+        }
+
+
+class Governance:
+    @staticmethod
+    def validate(
+        request: QuantumRequest,
+    ) -> None:
+        if not 1 <= request.wires <= MAX_WIRES:
+            fail(
+                "WIRE_LIMIT_EXCEEDED",
+                f"wires must be between 1 and {MAX_WIRES}",
+                Federation.GOVERNANCE,
+            )
+
+        if (
+            request.shots is not None
+            and not 1 <= request.shots <= MAX_SHOTS
+        ):
+            fail(
+                "SHOT_LIMIT_EXCEEDED",
+                f"shots must be between 1 and {MAX_SHOTS}",
+                Federation.GOVERNANCE,
+            )
+
+        if len(request.features) > MAX_FEATURES:
+            fail(
+                "FEATURE_LIMIT_EXCEEDED",
+                f"features exceeds {MAX_FEATURES}",
+                Federation.GOVERNANCE,
+            )
+
+        if len(request.weights) > MAX_WEIGHTS:
+            fail(
+                "WEIGHT_LIMIT_EXCEEDED",
+                f"weights exceeds {MAX_WEIGHTS}",
+                Federation.GOVERNANCE,
+            )
+
+        if request.provider not in DEVICE_REGISTRY:
+            fail(
+                "UNSUPPORTED_DEVICE",
+                request.provider,
+                Federation.DEVICE,
+            )
+
+
+class ClassicalFallback:
+    @staticmethod
+    def execute(
+        request: QuantumRequest,
+        reason: str,
+    ) -> dict[str, Any]:
+        features = request.features or (0.0,)
+        weights = request.weights or (0.125,)
+
+        values = [
+            math.tanh(
+                math.sin(feature)
+                + math.cos(
+                    weights[index % len(weights)]
+                )
+            )
+            for index, feature in enumerate(features)
+        ]
+
+        estimate = sum(values) / len(values)
+
+        return {
+            "status": Status.DEGRADED.value,
+            "executionMode":
+                ExecutionMode.CLASSICAL_FALLBACK.value,
+            "quantumResult": False,
+            "providerRequested": request.provider,
+            "estimate": round(estimate, 8),
+            "uncertaintyLabel": "UNCERTAIN",
+            "fallbackReason": reason[:300],
+        }
+
+
+class QuantumRuntime:
+    @staticmethod
+    def execute(
+        request: QuantumRequest,
+    ) -> dict[str, Any]:
+        spec = DeviceMesh.resolve(
+            request.provider
+        )
+
+        try:
+            import numpy as np
+            import pennylane as qml
+        except ImportError as error:
+            fail(
+                "QUANTUM_RUNTIME_UNAVAILABLE",
+                str(error),
+                Federation.QUANTUM,
+                retryable=True,
+                status=503,
+            )
+
+        started = time.perf_counter()
+
+        device = qml.device(
+            request.provider,
+            wires=request.wires,
+            shots=request.shots,
+        )
+
+        features = np.asarray(
+            list(request.features)[:request.wires]
+            + [0.0]
+            * max(
+                0,
+                request.wires - len(request.features),
+            ),
+            dtype=float,
+        )
+
+        weights = np.asarray(
+            list(request.weights)[:request.wires]
+            + [0.125]
+            * max(
+                0,
+                request.wires - len(request.weights),
+            ),
+            dtype=float,
+        )
+
+        @qml.qnode(device)
+        def circuit(
+            values: Any,
+            parameters: Any,
+        ) -> Any:
+            for wire in range(request.wires):
+                qml.RY(
+                    values[wire],
+                    wires=wire,
+                )
+                qml.RZ(
+                    parameters[wire],
+                    wires=wire,
+                )
+
+            for wire in range(request.wires - 1):
+                qml.CNOT(
+                    wires=[wire, wire + 1]
+                )
+
+            return qml.expval(
+                qml.PauliZ(0)
+            )
+
+        result = circuit(
+            features,
+            weights,
+        )
+
+        elapsed_ms = (
+            time.perf_counter() - started
+        ) * 1000
+
+        if elapsed_ms > MAX_LATENCY_MS:
+            fail(
+                "QUANTUM_LATENCY_BUDGET_EXCEEDED",
+                "Quantum execution exceeded latency budget",
+                Federation.QUANTUM,
+                retryable=True,
+                status=504,
+            )
+
+        expectation = float(
+            np.asarray(result).reshape(-1)[0]
+        )
+
+        return {
+            "status": Status.OK.value,
+            "executionMode": spec.mode.value,
+            "quantumResult": True,
+            "implementation": spec.implementation,
+            "provider": request.provider,
+            "wires": request.wires,
+            "shots": request.shots,
+            "expectation": round(
+                expectation,
+                8,
+            ),
+            "latencyMs": round(
+                elapsed_ms,
+                3,
+            ),
+            "pennylaneVersion": getattr(
+                qml,
+                "__version__",
+                "unknown",
+            ),
+        }
+
+
+class RequestNormalizer:
+    def __init__(
+        self,
+        replay_guard: ReplayGuard,
+    ) -> None:
+        self.replay_guard = replay_guard
+
+    def normalize(
+        self,
+        raw: dict[str, Any],
+    ) -> QuantumRequest:
+        schema = parse_string(
+            raw.get("schema"),
+            "schema",
+            maximum=96,
+        )
+
+        if schema != REQUEST_SCHEMA:
+            fail(
+                "UNSUPPORTED_SCHEMA",
+                f"Expected {REQUEST_SCHEMA}",
+                Federation.GOVERNANCE,
+            )
+
+        request_id = parse_string(
+            raw.get("requestId"),
+            "requestId",
+            maximum=128,
+        )
+
+        tenant_id = parse_string(
+            raw.get("tenantId"),
+            "tenantId",
+            maximum=128,
+        )
+
+        actor_id = parse_string(
+            raw.get("actorId"),
+            "actorId",
+            maximum=128,
+        )
+
+        task = parse_string(
+            raw.get("task", "execute"),
+            "task",
+            maximum=32,
+        )
+
+        if task not in {"execute", "diagnose"}:
+            fail(
+                "UNSUPPORTED_TASK",
+                task,
+                Federation.GOVERNANCE,
+            )
+
+        provider = parse_string(
+            raw.get("provider", "default.qubit"),
+            "provider",
+            maximum=96,
+        )
+
+        wires = parse_int(
+            raw.get("wires", 2),
+            "wires",
+            1,
+            MAX_WIRES,
+        )
+
+        shots_raw = raw.get("shots")
+        shots = (
+            parse_int(
+                shots_raw,
+                "shots",
+                1,
+                MAX_SHOTS,
+            )
+            if shots_raw is not None
+            else None
+        )
+
+        features = parse_numbers(
+            raw.get("features", []),
+            "features",
+            MAX_FEATURES,
+        )
+
+        weights = parse_numbers(
+            raw.get("weights", []),
+            "weights",
+            MAX_WEIGHTS,
+        )
+
+        scopes_raw = raw.get("scopes", [])
+
+        if not isinstance(scopes_raw, list):
+            fail(
+                "INVALID_SCOPES",
+                "scopes must be an array",
+                Federation.SECURITY,
+            )
+
+        scopes = tuple(
+            parse_string(
+                value,
+                "scope",
+                maximum=128,
+            )
+            for value in scopes_raw
+        )
+
+        ansatz = parse_string(
+            raw.get(
+                "ansatz",
+                "RY-RZ-chain-CNOT",
+            ),
+            "ansatz",
+            maximum=128,
+        )
+
+        policy_version = parse_string(
+            raw.get(
+                "policyVersion",
+                POLICY_ID,
+            ),
+            "policyVersion",
+            maximum=128,
+        )
+
+        nonce = parse_string(
+            raw.get("nonce"),
+            "nonce",
+            maximum=256,
+        )
+
+        timestamp = parse_int(
+            raw.get("timestamp"),
+            "timestamp",
+            1,
+            4_000_000_000,
+        )
+
+        self.replay_guard.validate(
+            nonce,
+            timestamp,
+        )
+
+        request_material = {
+            key: value
+            for key, value in raw.items()
+            if key != "authorizationSignature"
+        }
+
+        circuit_material = {
+            "provider": provider,
+            "wires": wires,
+            "shots": shots,
+            "features": features,
+            "weights": weights,
+            "ansatz": ansatz,
+            "bridgeVersion": BRIDGE_VERSION,
+        }
+
+        request = QuantumRequest(
+            schema=schema,
+            request_id=request_id,
+            tenant_id=tenant_id,
+            actor_id=actor_id,
+            task=task,
+            provider=provider,
+            wires=wires,
+            shots=shots,
+            features=features,
+            weights=weights,
+            scopes=scopes,
+            ansatz=ansatz,
+            policy_version=policy_version,
+            nonce=nonce,
+            timestamp=timestamp,
+            request_hash=sha3_512(
+                request_material
+            ),
+            circuit_hash=sha3_512(
+                circuit_material
+            ),
+        )
+
+        Governance.validate(request)
+        self.validate_scopes(request)
+
+        return request
+
+    @staticmethod
+    def validate_scopes(
+        request: QuantumRequest,
+    ) -> None:
+        required = set(
+            DEVICE_REGISTRY[
+                request.provider
+            ].required_scopes
+        )
+
+        granted = set(request.scopes)
+        missing = required - granted
+
+        if missing:
+            fail(
+                "MISSING_SECURITY_SCOPE",
+                ", ".join(sorted(missing)),
+                Federation.SECURITY,
+                status=403,
+            )
+
+
+class Bridge:
+    def __init__(self) -> None:
+        self.replay_guard = ReplayGuard()
+        self.audit = AuditStore(AUDIT_DB)
+        self.normalizer = RequestNormalizer(
+            self.replay_guard
+        )
+
+    def process(
+        self,
+        raw: dict[str, Any],
+    ) -> dict[str, Any]:
+        started = time.perf_counter()
+        request_id = str(
+            raw.get(
+                "requestId",
+                "unknown",
+            )
+        )
+
+        try:
+            Authorization.verify_request(raw)
+
+            manifest_status = (
+                ManifestVerifier.verify(
+                    raw.get("artifactManifest")
+                )
+            )
+
+            request = self.normalizer.normalize(
+                raw
+            )
+
+            audit_base = {
+                "requestId": request.request_id,
+                "tenantId": request.tenant_id,
+                "actorId": request.actor_id,
+                "provider": request.provider,
+                "requestHash": request.request_hash,
+                "circuitHash": request.circuit_hash,
+            }
+
+            if request.task == "diagnose":
+                result: dict[str, Any] = {
+                    "status": Status.OK.value,
+                    "executionMode":
+                        ExecutionMode.DIAGNOSTIC.value,
+                    "quantumResult": False,
+                    "devices":
+                        DeviceMesh.diagnostics(),
+                }
+            else:
+                try:
+                    result = QuantumRuntime.execute(
+                        request
+                    )
+                except BridgeError as error:
+                    result = ClassicalFallback.execute(
+                        request,
+                        f"{error.code}: {error.message}",
+                    )
+                except Exception as error:
+                    result = ClassicalFallback.execute(
+                        request,
+                        f"ENGINE_EXCEPTION: {error}",
+                    )
+
+            audit = self.audit.append(
+                "quantum.execution.completed",
+                {
+                    **audit_base,
+                    "result": result,
+                    "manifest": manifest_status,
+                },
+            )
+
+            result.update({
+                "schema": RESPONSE_SCHEMA,
+                "systemIdentifier":
+                    SYSTEM_IDENTIFIER,
+                "bridgeVersion":
+                    BRIDGE_VERSION,
+                "requestId":
+                    request.request_id,
+                "tenantId":
+                    request.tenant_id,
+                "requestHash":
+                    request.request_hash,
+                "circuitHash":
+                    request.circuit_hash,
+                "policyId":
+                    POLICY_ID,
+                "policyVersion":
+                    request.policy_version,
+                "auditId":
+                    audit["eventId"],
+                "provenance": {
+                    "manifest": manifest_status,
+                    "requestHash":
+                        request.request_hash,
+                    "circuitHash":
+                        request.circuit_hash,
+                    "eventHash":
+                        audit["eventHash"],
+                    "workerId":
+                        WORKER_ID,
+                },
+                "telemetry": {
+                    "totalRuntimeMs": round(
+                        (
+                            time.perf_counter()
+                            - started
+                        )
+                        * 1000,
+                        3,
+                    ),
+                    "pythonVersion":
+                        platform.python_version(),
+                },
+            })
+
+            return result
+
+        except BridgeError as error:
+            audit = self.audit.append(
+                "quantum.execution.rejected",
+                {
+                    "requestId": request_id,
+                    "errorCode": error.code,
+                    "federation":
+                        error.federation.value,
+                },
+            )
+
+            return {
+                "schema": RESPONSE_SCHEMA,
+                "systemIdentifier":
+                    SYSTEM_IDENTIFIER,
+                "bridgeVersion":
+                    BRIDGE_VERSION,
+                "status": Status.REJECTED.value,
+                "executionMode":
+                    ExecutionMode.REJECTED.value,
+                "quantumResult": False,
+                "requestId": request_id,
+                "error": {
+                    "code": error.code,
+                    "message": error.message[:300],
+                    "federation":
+                        error.federation.value,
+                    "retryable": error.retryable,
+                },
+                "auditId": audit["eventId"],
+                "telemetry": {
+                    "totalRuntimeMs": round(
+                        (
+                            time.perf_counter()
+                            - started
+                        )
+                        * 1000,
+                        3,
+                    ),
+                },
+            }
+
+        except Exception:
+            audit = self.audit.append(
+                "quantum.execution.error",
+                {
+                    "requestId": request_id,
+                    "errorCode": "INTERNAL_ERROR",
+                },
+            )
+
+            return {
+                "schema": RESPONSE_SCHEMA,
+                "systemIdentifier":
+                    SYSTEM_IDENTIFIER,
+                "bridgeVersion":
+                    BRIDGE_VERSION,
+                "status": Status.ERROR.value,
+                "executionMode":
+                    ExecutionMode.REJECTED.value,
+                "quantumResult": False,
+                "requestId": request_id,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal bridge error",
+                    "federation":
+                        Federation.QUANTUM.value,
+                    "retryable": False,
+                },
+                "auditId": audit["eventId"],
+            }
+
+
+def generate_keys(
+    directory: Path,
+) -> None:
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    try:
+        from cryptography.hazmat.primitives import (
+            serialization,
+        )
+
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PrivateKey,
+        )
+    except ImportError as error:
+        raise SystemExit(
+            "Install cryptography first: pip install cryptography"
+        ) from error
+
+    private_key = (
+        Ed25519PrivateKey.generate()
+    )
+
+    public_key = private_key.public_key()
+
+    private_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=
+        serialization.NoEncryption(),
+    )
+
+    public_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    (directory / "manifest-private.pem").write_bytes(
+        private_bytes
+    )
+
+    (directory / "manifest-public.pem").write_bytes(
+        public_bytes
+    )
+
+    authorization_key = secrets.token_bytes(32)
+
+    (directory / "authorization.key").write_text(
+        authorization_key.hex(),
+        encoding="utf-8",
+    )
+
+    os.chmod(
+        directory / "manifest-private.pem",
+        0o600,
+    )
+
+    os.chmod(
+        directory / "manifest-public.pem",
+        0o644,
+    )
+
+    os.chmod(
+        directory / "authorization.key",
+        0o600,
+    )
+
+    print(
+        f"Keys generated in {directory}",
+        file=sys.stderr,
+    )
+
+
+def write_json_line(
+    payload: dict[str, Any],
+) -> None:
+    output = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+    if (
+        len(output.encode("utf-8"))
+        > MAX_OUTPUT_BYTES
+    ):
+        output = json.dumps({
+            "schema": RESPONSE_SCHEMA,
+            "status": Status.ERROR.value,
+            "executionMode":
+                ExecutionMode.REJECTED.value,
+            "quantumResult": False,
+            "error": {
+                "code": "OUTPUT_LIMIT_EXCEEDED",
+                "message": "Output limit exceeded",
+                "retryable": False,
+            },
+        })
+
+    sys.stdout.write(output + "\n")
+    sys.stdout.flush()
+
+
+def run_stdio() -> int:
+    bridge = Bridge()
+
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+
+        encoded = line.encode("utf-8")
+
+        if len(encoded) > MAX_INPUT_BYTES:
+            write_json_line({
+                "schema": RESPONSE_SCHEMA,
+                "status": Status.REJECTED.value,
+                "executionMode":
+                    ExecutionMode.REJECTED.value,
+                "quantumResult": False,
+                "error": {
+                    "code": "INPUT_LIMIT_EXCEEDED",
+                    "message": "Input limit exceeded",
+                    "retryable": False,
+                },
+            })
+            continue
+
+        try:
+            raw = json.loads(line)
+
+            if not isinstance(raw, dict):
+                raise ValueError(
+                    "Root JSON must be an object"
+                )
+
+            write_json_line(
+                bridge.process(raw)
+            )
+
+        except Exception:
+            write_json_line({
+                "schema": RESPONSE_SCHEMA,
+                "status": Status.ERROR.value,
+                "executionMode":
+                    ExecutionMode.REJECTED.value,
+                "quantumResult": False,
+                "error": {
+                    "code": "INVALID_JSON",
+                    "message": "Invalid JSON request",
+                    "retryable": False,
+                },
+            })
+
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Isabella Quantum Bridge v6"
+    )
+
+    parser.add_argument(
+        "--stdio",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--generate-keys",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--key-dir",
+        default=str(KEY_DIR),
+    )
+
+    args = parser.parse_args()
+
+    if args.generate_keys:
+        generate_keys(
+            Path(args.key_dir)
+        )
+        return 0
+
+    if not args.stdio:
+        print(
+            "Use --stdio or --generate-keys",
+            file=sys.stderr,
+        )
+        return 2
+
+    return run_stdio()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

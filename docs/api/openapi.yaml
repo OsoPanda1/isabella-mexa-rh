@@ -1,0 +1,1203 @@
+openapi: 3.1.0
+info:
+  title: Isabella Villaseñor AI API
+  description: |
+    API gobernada de la infraestructura cognitiva territorial Isabella Villaseñor AI
+    (Nodo Cero — RDM Digital). Arquitectura: Perceive → Remember → Policy Gate →
+    Decide → Act → Audit.
+  version: "1.0.0"
+  contact:
+    name: RDM Digital — Nodo Cero
+    url: https://isabella-mexa.vercel.app
+  license:
+    name: Proprietary
+    url: https://rdmdigital.com/license
+
+servers:
+  - url: https://isabella-mexa.vercel.app
+    description: Producción
+  - url: http://localhost:3000
+    description: Desarrollo local
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT firmado con HS256. Se obtiene vía autenticación WebAuthn o sesión.
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          type: string
+          description: Mensaje de error legible por humanos.
+        code:
+          type: string
+          description: Código interno opcional.
+        timestamp:
+          type: string
+          format: date-time
+
+    MemoryItem:
+      type: object
+      required:
+        - memoryId
+        - scope
+        - content
+        - relevance
+        - createdAt
+      properties:
+        memoryId:
+          type: string
+          description: Identificador único del ítem de memoria.
+          example: mem-1703001234567-a1b2c3
+        scope:
+          type: string
+          enum:
+            - immediate
+            - session
+            - project
+            - territorial
+            - historical
+          description: Nivel de persistencia de la memoria.
+        content:
+          type: string
+          description: Contenido textual de la memoria.
+        contentJson:
+          type: object
+          additionalProperties: true
+          description: Representación JSON estructurada opcional.
+        sourceType:
+          type: string
+          description: Origen del ítem (user, system, tool, agent).
+          example: user
+        relevance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Relevancia semántica normalizada.
+        tenantId:
+          type: string
+          description: Identificador del tenant propietario.
+        createdAt:
+          type: string
+          format: date-time
+
+    ClaimEvaluation:
+      type: object
+      required:
+        - claimId
+        - assertion
+        - domain
+        - epistemicStatus
+        - confidence
+        - evaluatedAt
+      properties:
+        claimId:
+          type: string
+          description: Identificador único de la evaluación.
+        assertion:
+          type: string
+          description: Afirmación evaluada.
+        domain:
+          type: string
+          description: Dominio epistémico (e.g. quantum_computing, ai_governance).
+        source:
+          type: string
+          description: Fuente primaria de la afirmación.
+        sourceDoi:
+          type: string
+          description: DOI de la fuente si está disponible.
+        epistemicStatus:
+          type: string
+          enum:
+            - verified
+            - plausible
+            - contested
+            - unverified
+            - contradictory
+          description: Clasificación epistémica resultante.
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Nivel de confianza de la evaluación.
+        evidenceCount:
+          type: integer
+          description: Número de fuentes de evidencia consultadas.
+        contradictoryCount:
+          type: integer
+          description: Fuentes contradictorias encontradas.
+        evaluatedAt:
+          type: string
+          format: date-time
+
+    KillSwitchState:
+      type: object
+      required:
+        - status
+        - events
+      properties:
+        status:
+          type: string
+          enum:
+            - armed
+            - triggered
+            - resolving
+            - resolved
+          description: Estado actual del kill-switch.
+        activeEventId:
+          type: string
+          nullable: true
+          description: ID del evento activo, o null si está resuelto.
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/KillSwitchEvent"
+        lastActivatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastResolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    KillSwitchEvent:
+      type: object
+      required:
+        - eventId
+        - trigger
+        - severity
+        - status
+        - createdAt
+      properties:
+        eventId:
+          type: string
+        trigger:
+          type: string
+          description: Causa que activó el kill-switch.
+        severity:
+          type: string
+          enum:
+            - SEV-1
+            - SEV-2
+            - SEV-3
+            - SEV-4
+        status:
+          type: string
+          enum:
+            - triggered
+            - step_executed
+            - resolved
+        approvedBy:
+          type: string
+          nullable: true
+        stepsExecuted:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AuditLog:
+      type: object
+      required:
+        - eventType
+        - timestamp
+      properties:
+        eventId:
+          type: string
+          description: ID único del evento de auditoría.
+        eventType:
+          type: string
+          description: Tipo del evento (e.g. perception.processed, tool.executed, memory.item_added).
+          example: perception.processed
+        traceId:
+          type: string
+          description: Correlación distribuida (trace ID).
+        data:
+          type: object
+          additionalProperties: true
+          description: Payload del evento.
+        timestamp:
+          type: string
+          format: date-time
+
+    PerceptionInput:
+      type: object
+      required:
+        - payload
+      properties:
+        sessionId:
+          type: string
+          description: ID de sesión del cliente (se genera si se omite).
+        territoryId:
+          type: string
+          description: ID del territorio.
+          default: rdm-nodo-cero
+        inputType:
+          type: string
+          enum:
+            - chat
+            - event
+            - signal
+            - api
+            - ui
+          default: chat
+        payload:
+          type: object
+          description: Carga de la percepción (debe incluir text u otra clave).
+          example:
+            text: Hola Isabella
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    ToolExecutionRequest:
+      type: object
+      required:
+        - toolName
+      properties:
+        toolName:
+          type: string
+          description: Nombre de la herramienta registrada.
+          example: web_search
+        arguments:
+          type: object
+          additionalProperties: true
+          description: Argumentos de la herramienta.
+          example:
+            query: quantum computing 2026
+
+    QuantumJobRequest:
+      type: object
+      required:
+        - provider
+      properties:
+        provider:
+          type: string
+          description: Proveedor cuántico.
+          default: default.qubit
+        repository:
+          type: string
+          description: Repositorio del framework.
+          default: PennyLaneAI/pennylane
+        mode:
+          type: string
+          enum:
+            - analytic
+            - device
+          default: analytic
+        wires:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 4
+        shots:
+          type: integer
+          nullable: true
+        features:
+          type: array
+          items:
+            type: number
+          description: Vector de entrada numérico.
+        weights:
+          type: array
+          items:
+            type: number
+          description: Pesos del circuito paramétrico.
+        metadata:
+          type: object
+          additionalProperties: true
+
+    EpistemicClassificationRequest:
+      type: object
+      required:
+        - domain
+        - evidenceCount
+      properties:
+        domain:
+          type: string
+          description: Dominio epistémico a clasificar.
+          example: quantum_error_correction
+        evidenceCount:
+          type: integer
+          minimum: 0
+          description: Número de fuentes de evidencia.
+        contradictoryCount:
+          type: integer
+          minimum: 0
+          default: 0
+        avgRelevance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+        hasPrimarySource:
+          type: boolean
+          default: false
+        hasDateAndScope:
+          type: boolean
+          default: false
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida (parámetros faltantes o incorrectos).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            ok: false
+            error: "Campo requerido ausente."
+    Unauthorized:
+      description: Token JWT faltante, expirado o inválido.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            ok: false
+            error: "Autenticación requerida."
+    InternalError:
+      description: Error interno del servidor.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            ok: false
+            error: "Error interno del servidor."
+
+paths:
+  /api/v1/isabella:
+    get:
+      operationId: getIsabellaDiagnostics
+      summary: Diagnóstico y metadatos del sistema Isabella
+      tags:
+        - Diagnostics
+      security: []
+      responses:
+        "200":
+          description: Estado del sistema y rutas disponibles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - subsystem
+                  - version
+                  - timestamp
+                properties:
+                  ok:
+                    type: boolean
+                  subsystem:
+                    type: string
+                    example: "Isabella Villaseñor AI :: Nodo Cero Core Gateway"
+                  version:
+                    type: string
+                    example: "4.2.0-Enterprise"
+                  canonicalCycle:
+                    type: string
+                  nodeId:
+                    type: string
+                  endpoints:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/memory:
+    post:
+      operationId: addMemoryItem
+      summary: Registrar un nuevo ítem de memoria
+      tags:
+        - Memory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Contenido textual de la memoria.
+                  example: "La arquitectura CROWN orquesta 5 módulos cognitivos."
+                scope:
+                  type: string
+                  enum:
+                    - immediate
+                    - session
+                    - project
+                    - territorial
+                    - historical
+                  default: immediate
+                sourceType:
+                  type: string
+                  default: user
+                  description: Origen del ítem.
+                relevance:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+                  default: 0.8
+                contentJson:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Ítem de memoria registrado exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - memoryItem
+                properties:
+                  ok:
+                    type: boolean
+                  memoryItem:
+                    $ref: "#/components/schemas/MemoryItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    get:
+      operationId: queryMemory
+      summary: Consultar memoria jerárquica
+      tags:
+        - Memory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum:
+              - immediate
+              - session
+              - project
+              - territorial
+              - historical
+          description: Filtrar por nivel de alcance.
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Consulta de búsqueda semántica.
+        - name: minRelevance
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+          description: Relevancia mínima (0–1).
+      responses:
+        "200":
+          description: Lista de ítems de memoria que coinciden con la consulta.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - count
+                  - memories
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+                  memories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MemoryItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/tools/execute:
+    post:
+      operationId: executeTool
+      summary: Ejecutar herramienta en sandbox gobernado
+      tags:
+        - Tools
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolExecutionRequest"
+      responses:
+        "200":
+          description: Resultado de la ejecución de la herramienta.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - result
+                  - executionTimeMs
+                  - traceId
+                properties:
+                  ok:
+                    type: boolean
+                  result:
+                    type: object
+                    additionalProperties: true
+                  executionTimeMs:
+                    type: integer
+                    description: Latencia de ejecución en milisegundos.
+                  traceId:
+                    type: string
+                    description: ID de trazabilidad de la ejecución.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/kill-switch/activate:
+    post:
+      operationId: activateKillSwitch
+      summary: Activar kill-switch de emergencia
+      tags:
+        - Kill Switch
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trigger
+              properties:
+                trigger:
+                  type: string
+                  description: Descripción de la causa de activación.
+                  example: "Detección de exfiltración de memoria territorial."
+                severity:
+                  type: string
+                  enum:
+                    - SEV-1
+                    - SEV-2
+                    - SEV-3
+                    - SEV-4
+                  default: SEV-2
+                  description: Nivel de severidad del incidente.
+      responses:
+        "200":
+          description: Kill-switch activado exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/KillSwitchEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/kill-switch/resolve:
+    post:
+      operationId: resolveKillSwitch
+      summary: Resolver un evento de kill-switch activo
+      tags:
+        - Kill Switch
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID del evento de kill-switch a resolver.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approvedBy
+              properties:
+                approvedBy:
+                  type: string
+                  description: Identidad del operador que autoriza la resolución.
+                  example: "admin@nodo-cero.local"
+      responses:
+        "200":
+          description: Kill-switch resuelto exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - message
+                properties:
+                  ok:
+                    type: boolean
+                  message:
+                    type: string
+                    example: "Kill-switch resolved"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/claim-radar/evaluate:
+    post:
+      operationId: evaluateClaim
+      summary: Evaluar una afirmación contra fuentes epistémicas
+      tags:
+        - Claim Radar
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assertion
+                - domain
+                - source
+              properties:
+                assertion:
+                  type: string
+                  description: Afirmación a evaluar.
+                  example: "Los sistemas cuánticos tolerantes a fallos requieren 1000+ qubits físicos."
+                domain:
+                  type: string
+                  description: Dominio epistémico.
+                  example: quantum_error_correction
+                source:
+                  type: string
+                  description: Fuente primaria de la afirmación.
+                  example: "arXiv:2026.12345"
+                sourceDoi:
+                  type: string
+                  description: DOI de la fuente.
+                sourceOrcid:
+                  type: string
+                  description: ORCID del autor.
+                adapterIds:
+                  type: array
+                  items:
+                    type: string
+                  description: IDs de adaptadores MCP específicos a consultar.
+                maxResults:
+                  type: integer
+                  default: 10
+                timeoutMs:
+                  type: integer
+                  default: 15000
+      responses:
+        "200":
+          description: Evaluación epistémica completada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/ClaimEvaluation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/epistemic/classify:
+    get:
+      operationId: classifyEpistemicDomain
+      summary: Clasificar estatus epistémico de un dominio
+      tags:
+        - Epistemic
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Dominio epistémico a clasificar.
+        - name: evidenceCount
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+          description: Número de fuentes de evidencia disponibles.
+        - name: contradictoryCount
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Número de fuentes contradictorias.
+        - name: avgRelevance
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+            default: 0
+          description: Relevancia promedio de las fuentes.
+        - name: hasPrimarySource
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Indica si existe fuente primaria.
+        - name: hasDateAndScope
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Indica si las fuentes tienen fecha y alcance definidos.
+      responses:
+        "200":
+          description: Clasificación epistémica del dominio.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      domain:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - verified
+                          - plausible
+                          - contested
+                          - unverified
+                          - contradictory
+                      confidence:
+                        type: number
+                        format: float
+                      rationale:
+                        type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/mcp/health:
+    get:
+      operationId: getMcpHealth
+      summary: Estado de salud del hub de adaptadores MCP
+      tags:
+        - MCP
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Estado del hub MCP y adaptadores conectados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: object
+                    additionalProperties: true
+                    description: Estado detallado del hub y cada adaptador.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/quantum/submit:
+    post:
+      operationId: submitQuantumJob
+      summary: Enviar un trabajo al mesh cuántico gobernado
+      tags:
+        - Quantum
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuantumJobRequest"
+      responses:
+        "200":
+          description: Trabajo cuántico enviado y procesado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - requestId
+                  - traceId
+                properties:
+                  ok:
+                    type: boolean
+                  requestId:
+                    type: string
+                    format: uuid
+                  traceId:
+                    type: string
+                  result:
+                    type: object
+                    additionalProperties: true
+                    description: Resultado del pipeline de ejecución cuántica.
+                  provider:
+                    type: string
+                  mode:
+                    type: string
+                  latencyMs:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/isabella/quantum/status:
+    get:
+      operationId: getQuantumStatus
+      summary: Estado completo del mesh cuántico
+      tags:
+        - Quantum
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Estado de todos los subsistemas del mesh cuántico.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - mesh
+                properties:
+                  ok:
+                    type: boolean
+                  mesh:
+                    type: object
+                    description: Estado del scheduler, circuit breakers, workers, etc.
+                    additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/automation/status:
+    get:
+      operationId: getAutomationStatus
+      summary: Estado del sistema de automatización y auto-curación
+      tags:
+        - Automation
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Resumen del sistema de automatización.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      activeFailures:
+                        type: integer
+                      repairChains:
+                        type: integer
+                      monitoringSince:
+                        type: string
+                        format: date-time
+                      subsystems:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            status:
+                              type: string
+                              enum:
+                                - healthy
+                                - degraded
+                                - failing
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/automation/problem:
+    post:
+      operationId: describeAutomationProblem
+      summary: Describir un problema para diagnóstico NLP
+      tags:
+        - Automation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  minLength: 3
+                  description: Descripción en lenguaje natural del problema.
+                  example: "El nodo quantum-worker-2 no responde desde hace 5 minutos."
+      responses:
+        "200":
+          description: Diagnóstico y pasos de reparación sugeridos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - data
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      identifiedNode:
+                        type: string
+                      severity:
+                        type: string
+                      suggestedActions:
+                        type: array
+                        items:
+                          type: string
+                      automatedRepairAvailable:
+                        type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/audit/recent:
+    get:
+      operationId: getRecentAuditLogs
+      summary: Registro de auditoría reciente con verificación SHA-256
+      tags:
+        - Audit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+          description: Número máximo de registros a retornar.
+      responses:
+        "200":
+          description: Logs de auditoría con hash de verificación.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - count
+                  - logs
+                  - sha256Verification
+                  - timestamp
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  logs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+                  sha256Verification:
+                    type: string
+                    description: Hash SHA-256 del payload serializado para integridad.
+                    example: "a1b2c3d4e5f6..."
+                  timestamp:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/isabella/telemetry:
+    get:
+      operationId: getTelemetrySnapshot
+      summary: Snapshot de telemetría del sistema completo
+      tags:
+        - Telemetry
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Snapshot de telemetría con métricas de todos los módulos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                  - telemetry
+                properties:
+                  ok:
+                    type: boolean
+                  telemetry:
+                    type: object
+                    properties:
+                      uptime:
+                        type: number
+                        description: Tiempo de actividad en segundos.
+                      cpuUsage:
+                        type: number
+                        format: float
+                        description: Uso de CPU normalizado (0–1).
+                      memoryUsageMb:
+                        type: number
+                        description: Uso de memoria en MB.
+                      activeSessions:
+                        type: integer
+                      requestsLastHour:
+                        type: integer
+                      errorRate:
+                        type: number
+                        format: float
+                      modules:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            status:
+                              type: string
+                            latencyMs:
+                              type: integer
+                      timestamp:
+                        type: string
+                        format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+tags:
+  - name: Diagnostics
+    description: Endpoints de diagnóstico y metadatos del sistema.
+  - name: Memory
+    description: Gestión de memoria jerárquica (MNEMOSYNE).
+  - name: Tools
+    description: Catálogo y ejecución sandbox de herramientas (ORION).
+  - name: Kill Switch
+    description: Kill-switch de emergencia y control de emergencias.
+  - name: Claim Radar
+    description: Evaluación epistémica de afirmaciones contra fuentes verificadas.
+  - name: Epistemic
+    description: Clasificación y gobernanza epistémica de dominios.
+  - name: MCP
+    description: Hub de adaptadores MCP (Model Context Protocol).
+  - name: Quantum
+    description: Mesh cuántico gobernado — ejecución, scheduler, circuit breakers, HSM/TEE.
+  - name: Automation
+    description: Automatización auto-curada y diagnóstico NLP.
+  - name: Audit
+    description: Registro de auditoría criptográfica con verificación SHA-256.
+  - name: Telemetry
+    description: Telemetría y métricas en tiempo real.

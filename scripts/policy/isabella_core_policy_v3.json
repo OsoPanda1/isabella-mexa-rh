@@ -1,0 +1,91 @@
+{
+  "$schema": "https://tamv.online/schemas/isabella-core-policy-v3.json",
+  "schemaVersion": 3,
+  "systemIdentifier": "isabella-core",
+  "policyId": "EOCT_STRICT_V3",
+  "mode": "FAIL_CLOSED",
+  "model": {
+    "temperature": 0,
+    "topP": 0.1,
+    "maxTokens": 4096
+  },
+  "grounding": {
+    "requireEvidenceFor": [
+      "academic",
+      "territorial",
+      "legal",
+      "medical",
+      "financial"
+    ],
+    "uncertaintyLabel": "UNCERTAIN",
+    "retrievalIsNotProof": true,
+    "minEvidence": 1
+  },
+  "security": {
+    "allowNetworkByDefault": false,
+    "allowToolsByDefault": false,
+    "redactSecretsFromLogs": true,
+    "requireSignedArtifactManifest": true,
+    "failClosed": true,
+    "requireRequestNonce": true,
+    "requireIdempotencyKey": true,
+    "constantTimeVerification": true
+  },
+  "routing": {
+    "default": "local",
+    "federatedRequiresConsent": true,
+    "denyIfDataClass": [
+      "restricted",
+      "secret"
+    ],
+    "allowedRoutes": [
+      "local",
+      "federated"
+    ]
+  },
+  "limits": {
+    "maxRequestBytes": 262144,
+    "maxEvidenceItems": 32,
+    "maxEvidenceBytes": 1048576,
+    "maxToolCalls": 8,
+    "maxNetworkCalls": 4,
+    "requestTtlSeconds": 300
+  },
+  "privacy": {
+    "dataClasses": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted",
+      "secret"
+    ],
+    "restrictedClasses": [
+      "restricted",
+      "secret"
+    ],
+    "defaultDataClass": "internal"
+  },
+  "audit": {
+    "immutableEventHash": true,
+    "hashAlgorithm": "sha3_512",
+    "includeProvenance": true,
+    "includePolicyDecision": true
+  },
+  "responseContract": {
+    "include": [
+      "requestId",
+      "claims",
+      "evidence",
+      "policyDecision",
+      "provenance",
+      "audit"
+    ],
+    "neverClaimProductionWithoutEvidence": true,
+    "denyWithoutEvidence": [
+      "legal",
+      "medical",
+      "financial",
+      "production-status"
+    ]
+  }
+}

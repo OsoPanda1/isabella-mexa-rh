@@ -1,0 +1,8 @@
+# Core runtime
+pennylane>=0.40,<0.44
+
+# Optional backends (install only what you need)
+# pennylane-lightning>=0.40,<0.44
+# pennylane-qiskit>=0.40,<0.44
+# pennylane-rigetti>=0.40,<0.44
+# amazon-braket-pennylane-plugin>=1.0

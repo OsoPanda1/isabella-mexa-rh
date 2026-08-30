@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tamv.online/schemas/isabella-core-policy-v3.json",
+  "title": "Isabella Core Security Policy v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "systemIdentifier",
+    "policyId",
+    "mode",
+    "model",
+    "grounding",
+    "security",
+    "routing",
+    "limits",
+    "privacy",
+    "audit",
+    "responseContract"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 3
+    },
+    "systemIdentifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$"
+    },
+    "policyId": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_:-]{4,96}$"
+    },
+    "mode": {
+      "enum": [
+        "STRICT",
+        "FAIL_CLOSED"
+      ]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temperature",
+        "topP",
+        "maxTokens"
+      ],
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "topP": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32768
+        }
+      }
+    },
+    "grounding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requireEvidenceFor",
+        "uncertaintyLabel",
+        "retrievalIsNotProof",
+        "minEvidence"
+      ],
+      "properties": {
+        "requireEvidenceFor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "uncertaintyLabel": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "retrievalIsNotProof": {
+          "const": true
+        },
+        "minEvidence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowNetworkByDefault",
+        "allowToolsByDefault",
+        "redactSecretsFromLogs",
+        "requireSignedArtifactManifest",
+        "failClosed",
+        "requireRequestNonce",
+        "requireIdempotencyKey",
+        "constantTimeVerification"
+      ],
+      "properties": {
+        "allowNetworkByDefault": {
+          "const": false
+        },
+        "allowToolsByDefault": {
+          "const": false
+        },
+        "redactSecretsFromLogs": {
+          "const": true
+        },
+        "requireSignedArtifactManifest": {
+          "const": true
+        },
+        "failClosed": {
+          "const": true
+        },
+        "requireRequestNonce": {
+          "const": true
+        },
+        "requireIdempotencyKey": {
+          "const": true
+        },
+        "constantTimeVerification": {
+          "const": true
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default",
+        "federatedRequiresConsent",
+        "denyIfDataClass",
+        "allowedRoutes"
+      ],
+      "properties": {
+        "default": {
+          "const": "local"
+        },
+        "federatedRequiresConsent": {
+          "const": true
+        },
+        "denyIfDataClass": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "allowedRoutes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "local",
+              "federated"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxRequestBytes",
+        "maxEvidenceItems",
+        "maxEvidenceBytes",
+        "maxToolCalls",
+        "maxNetworkCalls",
+        "requestTtlSeconds"
+      ],
+      "properties": {
+        "maxRequestBytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 10485760
+        },
+        "maxEvidenceItems": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "maxEvidenceBytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 10485760
+        },
+        "maxToolCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "maxNetworkCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "requestTtlSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 3600
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataClasses",
+        "restrictedClasses",
+        "defaultDataClass"
+      ],
+      "properties": {
+        "dataClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "restrictedClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "defaultDataClass": {
+          "type": "string"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "immutableEventHash",
+        "hashAlgorithm",
+        "includeProvenance",
+        "includePolicyDecision"
+      ],
+      "properties": {
+        "immutableEventHash": {
+          "const": true
+        },
+        "hashAlgorithm": {
+          "enum": [
+            "sha256",
+            "sha3_512"
+          ]
+        },
+        "includeProvenance": {
+          "const": true
+        },
+        "includePolicyDecision": {
+          "const": true
+        }
+      }
+    },
+    "responseContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include",
+        "neverClaimProductionWithoutEvidence",
+        "denyWithoutEvidence"
+      ],
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "neverClaimProductionWithoutEvidence": {
+          "const": true
+        },
+        "denyWithoutEvidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

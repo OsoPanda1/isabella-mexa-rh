@@ -1,0 +1,16 @@
+const SECRET_KEYS = ["ISABELLA_AUTH_SECRET", "API_KEY_PEPPER", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_JWT_SECRET"] as const;
+const PLACEHOLDER = /^(|changeme|change-me|your_.+|YOUR_.+|example|dev-secret|secret|password)$/i;
+
+export function assertStrictEnv(): void {
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (!isProduction) return;
+  const missing = SECRET_KEYS.filter((key) => PLACEHOLDER.test(String(process.env[key] || "")));
+  if (missing.length > 0) {
+    throw new Error(`Production secrets must be provided via environment manager: ${missing.join(", ")}`);
+  }
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    throw new Error("Production requires Upstash Redis REST credentials for distributed sessions and rate limiting.");
+  }
+  const origins = (process.env.CANONICAL_ORIGINS || "").split(",").filter(Boolean);
+  if (origins.length === 0) throw new Error("Production requires CANONICAL_ORIGINS for strict CORS.");
+}

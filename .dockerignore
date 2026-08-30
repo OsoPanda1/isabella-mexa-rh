@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.github
+.env
+.env.local
+.env.production
+*.md
+tests
+scripts/quantum
+scripts/voice
+data
+.isabella-data
+*.db

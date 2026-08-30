@@ -1,0 +1,77 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs that are not drafts
+    if: github.actor == 'dependabot[bot]' && !github.event.pull_request.draft
+    steps:
+      - name: Check CI status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            const headSha = context.payload.pull_request.head.sha;
+
+            core.info(`Checking CI for PR #${prNumber} (${headSha})`);
+
+            // Wait for check runs to complete (up to 5 min)
+            const maxWaitMs = 300_000;
+            const pollMs = 10_000;
+            let elapsed = 0;
+            let allPassed = false;
+
+            while (elapsed < maxWaitMs) {
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner, repo, ref: headSha,
+              });
+
+              if (checks.total_count === 0) {
+                core.info('No check runs yet, waiting...');
+                await new Promise(r => setTimeout(r, pollMs));
+                elapsed += pollMs;
+                continue;
+              }
+
+              const failed = checks.check_runs.filter(c =>
+                c.status === 'completed' && c.conclusion !== 'success' && c.conclusion !== 'skipped' && c.conclusion !== 'neutral'
+              );
+              const pending = checks.check_runs.filter(c => c.status !== 'completed');
+
+              if (failed.length > 0) {
+                core.setFailed(`CI failed: ${failed.map(c => c.name).join(', ')}`);
+                return;
+              }
+
+              if (pending.length > 0) {
+                core.info(`Waiting for ${pending.length} checks: ${pending.map(c => c.name).join(', ')}`);
+                await new Promise(r => setTimeout(r, pollMs));
+                elapsed += pollMs;
+                continue;
+              }
+
+              allPassed = true;
+              break;
+            }
+
+            if (!allPassed) {
+              core.setFailed('CI did not complete within 5 minutes');
+              return;
+            }
+
+            core.info('All CI checks passed — approving and merging');
+
+      - name: Approve and enable auto-merge
+        run: gh pr review --approve "$PR_URL" && gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

@@ -1,0 +1,2 @@
+export const getTelemetrySnapshot = { endpoint: "/api/telemetry/getTelemetrySnapshot", method: "GET" };
+export const fireSyntheticEvent = { endpoint: "/api/telemetry/fireSyntheticEvent", method: "POST" };

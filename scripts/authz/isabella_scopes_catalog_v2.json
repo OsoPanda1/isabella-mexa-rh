@@ -1,0 +1,683 @@
+{
+  "catalogId": "isabella-scopes-v2.0.0",
+  "catalogDigest": "sha3_512:pending-computation",
+  "version": "2.0.0",
+  "policyModel": "default-deny",
+  "authorization": {
+    "policyModel": "default-deny",
+    "wildcardPolicy": "system-role-only",
+    "elevationPolicy": "forbidden",
+    "description": "Scopes are necessary but not sufficient. Authorization is the intersection of identity + tenant + scope + role + assurance + session + step-up + resource context + budget + policy."
+  },
+  "authentication": {
+    "requiredClaims": [
+      "sub", "tenantId", "scopes", "roles", "iat", "exp", "jti", "iss", "aud"
+    ],
+    "clockSkewSeconds": 30,
+    "maxTokenLifetimeSeconds": 86400,
+    "issuer": "https://auth.isabella.ai",
+    "audience": "isabella-api"
+  },
+  "assuranceLevels": {
+    "local": {
+      "rank": 1,
+      "description": "Standard JWT authentication over HTTPS. Sufficient for read operations and low-risk writes within a single tenant."
+    },
+    "mtls": {
+      "rank": 2,
+      "description": "Mutual TLS with client certificate. Required for cross-service calls, provider configuration, and medium-risk operations."
+    },
+    "hardware-backed": {
+      "rank": 3,
+      "description": "Hardware-backed identity via WebAuthn, HSM, or TEE attestation. Required for policy changes, kill-switch, key management, and all critical operations."
+    }
+  },
+  "roles": {
+    "citizen": { "rank": 1, "description": "End user. Read access to own tenant data." },
+    "agent": { "rank": 2, "description": "Automated agent with scoped write access." },
+    "operator": { "rank": 3, "description": "System operator. Can manage tools, quantum jobs, and automation." },
+    "admin": { "rank": 4, "description": "Administrative access. Cannot change policy or manage secrets." },
+    "governance_admin": { "rank": 5, "description": "Policy and governance authority. Requires hardware-backed step-up." },
+    "system": { "rank": 6, "description": "Automated system principal. Only role that may use wildcard scope." }
+  },
+  "scopes": [
+    {
+      "scope": "memory:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "memory",
+      "description": "Read memory items within the authenticated tenant."
+    },
+    {
+      "scope": "memory:write",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "memory",
+      "description": "Create or update memory items within the authenticated tenant."
+    },
+    {
+      "scope": "memory:admin",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "memory",
+      "description": "Delete or purge entire memory scopes. Irreversible."
+    },
+    {
+      "scope": "audit:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "audit",
+      "description": "Read audit log entries within the authenticated tenant."
+    },
+    {
+      "scope": "audit:write",
+      "minimumRole": "system",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "audit",
+      "description": "Create audit log entries. Reserved for system-internal event emission."
+    },
+    {
+      "scope": "tools:execute",
+      "minimumRole": "operator",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "tools",
+      "description": "Execute registered tools in the governed sandbox."
+    },
+    {
+      "scope": "tools:admin",
+      "minimumRole": "admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "critical",
+      "category": "tools",
+      "description": "Register, modify, or remove tool capabilities. Hardware-backed step-up required."
+    },
+    {
+      "scope": "quantum:execute",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Submit quantum circuits for execution via the governed mesh."
+    },
+    {
+      "scope": "quantum:submit",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Alias for quantum:execute. Submit jobs to the quantum scheduler."
+    },
+    {
+      "scope": "quantum:status",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "quantum",
+      "description": "Query the status and results of quantum jobs."
+    },
+    {
+      "scope": "quantum:admin",
+      "minimumRole": "governance_admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "quantum",
+      "description": "Manage providers, worker pools, and quantum mesh configuration."
+    },
+    {
+      "scope": "quantum:registry",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Manage the quantum device registry."
+    },
+    {
+      "scope": "quantum:schedule",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Interact with the quantum job scheduler."
+    },
+    {
+      "scope": "quantum:supervise",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Supervise quantum worker health and lifecycle."
+    },
+    {
+      "scope": "quantum:qiskit",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Access IBM Qiskit backends (Aer, BasicSim, remote)."
+    },
+    {
+      "scope": "quantum:lightning",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Access PennyLane Lightning backends (CPU, GPU, Kokkos, Tensor)."
+    },
+    {
+      "scope": "quantum:braket",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "quantum",
+      "description": "Access Amazon Braket remote devices. Requires step-up due to external provider."
+    },
+    {
+      "scope": "quantum:rigetti",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "quantum",
+      "description": "Access Rigetti QPU/QVM devices. Requires step-up due to external provider."
+    },
+    {
+      "scope": "quantum:catalyst",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Access PennyLane Catalyst JIT compilation."
+    },
+    {
+      "scope": "quantum:gpu",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "quantum",
+      "description": "Access GPU-accelerated quantum backends."
+    },
+    {
+      "scope": "quantum:remote",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "quantum",
+      "description": "Access any remote quantum provider. Requires step-up for external network calls."
+    },
+    {
+      "scope": "crypto:sign",
+      "minimumRole": "operator",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "crypto",
+      "description": "Post-quantum cryptographic signing (CRYSTALS-Dilithium)."
+    },
+    {
+      "scope": "hsm:sign",
+      "minimumRole": "governance_admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "critical",
+      "category": "crypto",
+      "description": "Hardware Security Module signing operations."
+    },
+    {
+      "scope": "tee:verify",
+      "minimumRole": "operator",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "crypto",
+      "description": "Trusted Execution Environment attestation verification."
+    },
+    {
+      "scope": "identity:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "identity",
+      "description": "Read own identity claims and attributes."
+    },
+    {
+      "scope": "consent:write",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "governance",
+      "description": "Grant or revoke consent for data, automation, and third-party access."
+    },
+    {
+      "scope": "orchestration:plan",
+      "minimumRole": "operator",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "orchestration",
+      "description": "Create and manage execution plans in the Hermes orchestrator."
+    },
+    {
+      "scope": "storage:write",
+      "minimumRole": "system",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "storage",
+      "description": "Write to PostgreSQL/dual-write persistence layer. System-internal."
+    },
+    {
+      "scope": "backup:write",
+      "minimumRole": "system",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "storage",
+      "description": "Write backup and recovery data. System-internal."
+    },
+    {
+      "scope": "telemetry:write",
+      "minimumRole": "system",
+      "assurance": "local",
+      "tenantBound": false,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "telemetry",
+      "description": "Emit telemetry counters, histograms, and spans. System-internal, not tenant-bound."
+    },
+    {
+      "scope": "federation:replicate",
+      "minimumRole": "system",
+      "assurance": "mtls",
+      "tenantBound": false,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "federation",
+      "description": "Replicate data across the Heptafederado mesh. System-internal."
+    },
+    {
+      "scope": "recovery:activate",
+      "minimumRole": "operator",
+      "assurance": "hardware-backed",
+      "tenantBound": false,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "recovery",
+      "description": "Activate automated recovery procedures. Requires step-up and dual control."
+    },
+    {
+      "scope": "events:write",
+      "minimumRole": "agent",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "events",
+      "description": "Publish domain events to the event bus."
+    },
+    {
+      "scope": "ledger:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "ledger",
+      "description": "Read BookPI chain-of-provenance blocks."
+    },
+    {
+      "scope": "policy:evaluate",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "policy",
+      "description": "Evaluate authorization requests against the policy engine."
+    },
+    {
+      "scope": "agent:lease",
+      "minimumRole": "operator",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "agent",
+      "description": "Acquire a time-bounded lease for autonomous agent execution."
+    },
+    {
+      "scope": "agent:chat",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "agent",
+      "description": "Send messages to the Isabella agent and receive responses."
+    },
+    {
+      "scope": "chat:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "chat",
+      "description": "Read chat history and conversation threads."
+    },
+    {
+      "scope": "chat:write",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "chat",
+      "description": "Send chat messages and interact with the conversation interface."
+    },
+    {
+      "scope": "models:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "models",
+      "description": "List available AI models and their configurations."
+    },
+    {
+      "scope": "territory:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "territory",
+      "description": "Read territorial data, POIs, and geographic context for Real del Monte."
+    },
+    {
+      "scope": "billing:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "billing",
+      "description": "Read own billing plans, usage, and subscription status."
+    },
+    {
+      "scope": "billing:checkout",
+      "minimumRole": "citizen",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "billing",
+      "description": "Initiate a billing checkout or payment. Requires step-up."
+    },
+    {
+      "scope": "economy:purchase",
+      "minimumRole": "citizen",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "economy",
+      "description": "Purchase credits or services in the Isabella economy."
+    },
+    {
+      "scope": "dao:vote",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "dao",
+      "description": "Cast votes in DAO governance proposals."
+    },
+    {
+      "scope": "dao:write",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "dao",
+      "description": "Create or modify DAO governance proposals."
+    },
+    {
+      "scope": "registry:write",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "registry",
+      "description": "Register or update entries in the document or capability registry."
+    },
+    {
+      "scope": "governance:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "governance",
+      "description": "Read governance policies, consent state, and safety configuration."
+    },
+    {
+      "scope": "claim:evaluate",
+      "minimumRole": "operator",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "medium",
+      "category": "claims",
+      "description": "Evaluate factual claims against evidence repositories via Claim Radar."
+    },
+    {
+      "scope": "claim:admin",
+      "minimumRole": "admin",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "claims",
+      "description": "Manage MCP adapters for the Claim Radar evidence pipeline."
+    },
+    {
+      "scope": "automation:read",
+      "minimumRole": "citizen",
+      "assurance": "local",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "low",
+      "category": "automation",
+      "description": "Read the health and status of the automation mesh nodes."
+    },
+    {
+      "scope": "automation:execute",
+      "minimumRole": "operator",
+      "assurance": "mtls",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "automation",
+      "description": "Execute automation workflows and repair chains."
+    },
+    {
+      "scope": "kill-switch:activate",
+      "minimumRole": "system",
+      "assurance": "hardware-backed",
+      "tenantBound": false,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "emergency",
+      "description": "Activate the kill-switch emergency containment chain. Requires system role, hardware-backed identity, step-up, and dual control."
+    },
+    {
+      "scope": "kill-switch:resolve",
+      "minimumRole": "admin",
+      "assurance": "hardware-backed",
+      "tenantBound": false,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "emergency",
+      "description": "Resolve a kill-switch after human approval and health verification."
+    },
+    {
+      "scope": "admin:policy",
+      "minimumRole": "governance_admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "admin",
+      "description": "Modify authorization policies, OPA rules, or scope definitions. The most restricted scope."
+    },
+    {
+      "scope": "admin:tenant",
+      "minimumRole": "admin",
+      "assurance": "hardware-backed",
+      "tenantBound": false,
+      "requiresStepUp": true,
+      "requiresDualControl": false,
+      "risk": "high",
+      "category": "admin",
+      "description": "Create, configure, or delete tenant settings and rate limits."
+    },
+    {
+      "scope": "admin:secrets",
+      "minimumRole": "governance_admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": true,
+      "requiresDualControl": true,
+      "risk": "critical",
+      "category": "admin",
+      "description": "Access, rotate, or revoke secrets. Under HSM failover monitor."
+    },
+    {
+      "scope": "admin:keys",
+      "minimumRole": "admin",
+      "assurance": "hardware-backed",
+      "tenantBound": true,
+      "requiresStepUp": false,
+      "requiresDualControl": false,
+      "risk": "critical",
+      "category": "admin",
+      "description": "Create, rotate, or revoke API keys for the platform."
+    }
+  ]
+}
