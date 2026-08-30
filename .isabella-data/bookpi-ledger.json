@@ -1,205 +1,697 @@
-[
-  {
-    "index": 0,
-    "timestamp": "2026-08-30T04:41:20.750Z",
-    "eventType": "kernel_boot",
-    "module": "BookPI",
-    "action": "ledger.init",
-    "actor": "system",
-    "data": {
-      "version": "4.2.0-PQC",
-      "difficulty": 2,
-      "persistence": "durable-json"
-    },
-    "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
-    "nonce": 436,
-    "hash": "00551bc664011e91c358d6a8e79ba186d57d0b0f47c01811794d6289c323b4ed",
-    "cid": "bafyrei2JGgaQnXAQBRrvCRAqoCfQy8qv1VtPFz"
-  },
-  {
-    "index": 1,
-    "timestamp": "2026-08-30T04:41:20.754Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "b9b6ebcaef0bea7f",
-      "context": "boot"
-    },
-    "prevHash": "00551bc664011e91c358d6a8e79ba186d57d0b0f47c01811794d6289c323b4ed",
-    "nonce": 100,
-    "hash": "00423be8a772913193a03eab145ec7726ce1f79fd3d90d9d16962c3ed0d07bcd",
-    "cid": "bafyrei21aWPayqSUiRv4FzB9YmV5yaUziXejH8"
-  },
-  {
-    "index": 2,
-    "timestamp": "2026-08-30T04:41:20.756Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "af87c8f59138dab6"
-    },
-    "prevHash": "00423be8a772913193a03eab145ec7726ce1f79fd3d90d9d16962c3ed0d07bcd",
-    "nonce": 404,
-    "hash": "007710283a774c4a99cdb1fc791d9c8dbf7428afcede14b0f25981fc95529f46",
-    "cid": "bafyrei2pJQGnaGdEn7JKHxJLxTgyMce14P8ByB"
-  },
-  {
-    "index": 3,
-    "timestamp": "2026-08-30T04:47:46.570Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "8a04053457d5bfbb",
-      "context": "boot"
-    },
-    "prevHash": "007710283a774c4a99cdb1fc791d9c8dbf7428afcede14b0f25981fc95529f46",
-    "nonce": 88,
-    "hash": "001eea4c0b09632cb9aec9a020f64b7eb9167649a5c54792b2960a68c2d2f0d1",
-    "cid": "bafyreiULp5KJmMr95w4drURQ5jYMrmsshvWwdR"
-  },
-  {
-    "index": 4,
-    "timestamp": "2026-08-30T04:47:46.572Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "129d21037b9bc6ac"
-    },
-    "prevHash": "001eea4c0b09632cb9aec9a020f64b7eb9167649a5c54792b2960a68c2d2f0d1",
-    "nonce": 10,
-    "hash": "00df35693d0eb27ff59d794bb3af318bcd6b167a00282697ff7cf2175bd68ea7",
-    "cid": "bafyrei4QQbeM4e81P4hnjEqpEaHKkS5uwz8pfk"
-  },
-  {
-    "index": 5,
-    "timestamp": "2026-08-30T04:48:10.396Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "2809e956a7ae5d51",
-      "context": "boot"
-    },
-    "prevHash": "00df35693d0eb27ff59d794bb3af318bcd6b167a00282697ff7cf2175bd68ea7",
-    "nonce": 290,
-    "hash": "0044cdc46e400b38bda5e40d15a4aeb32dd53342a17dbd28d82dd6def0c59c06",
-    "cid": "bafyrei23rKnJSTQsDsYqen7fWXSkVuSHbbdvrj"
-  },
-  {
-    "index": 6,
-    "timestamp": "2026-08-30T04:48:10.399Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "cc5925045542a96d"
-    },
-    "prevHash": "0044cdc46e400b38bda5e40d15a4aeb32dd53342a17dbd28d82dd6def0c59c06",
-    "nonce": 130,
-    "hash": "000b16f864c4afe371e74e2cdff83387989146df522c03535c9e6743653af716",
-    "cid": "bafyreiAorUhHpmJJxpBcSUJHpmCCvGwmZ3hMSC"
-  },
-  {
-    "index": 7,
-    "timestamp": "2026-08-30T04:48:48.592Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "67ea89c6fcfe5a33",
-      "context": "boot"
-    },
-    "prevHash": "000b16f864c4afe371e74e2cdff83387989146df522c03535c9e6743653af716",
-    "nonce": 46,
-    "hash": "00b0a675abad8426abf2a3ac977e6c815f32d505cd6ebd61c8ecdae7a0650681",
-    "cid": "bafyrei3hEMwJvYRc79QpCCkzDexSC83A1znDUi"
-  },
-  {
-    "index": 8,
-    "timestamp": "2026-08-30T04:48:48.593Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "88dcff107b6b9435"
-    },
-    "prevHash": "00b0a675abad8426abf2a3ac977e6c815f32d505cd6ebd61c8ecdae7a0650681",
-    "nonce": 523,
-    "hash": "008d66bf530918f9ffd0e1ba5b5840d66c49c16262e3768ac097a7ccb5d8095d",
-    "cid": "bafyrei3A4FeGLXxKW1Bc1a7Ph4566LLDKLAZBL"
-  },
-  {
-    "index": 9,
-    "timestamp": "2026-08-30T05:01:59.603Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "e1babde08236ebf1",
-      "context": "boot"
-    },
-    "prevHash": "008d66bf530918f9ffd0e1ba5b5840d66c49c16262e3768ac097a7ccb5d8095d",
-    "nonce": 173,
-    "hash": "00bb41860ff00aa97aa7ad27c10e1e1488efd0eb6a66ee798d21ecfbc982ce51",
-    "cid": "bafyrei3rcPRPbRsH5umeKCU65QXSv8oxQu1Eqe"
-  },
-  {
-    "index": 10,
-    "timestamp": "2026-08-30T05:01:59.605Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "ff9b26f0be53e9e4"
-    },
-    "prevHash": "00bb41860ff00aa97aa7ad27c10e1e1488efd0eb6a66ee798d21ecfbc982ce51",
-    "nonce": 168,
-    "hash": "006466478cb300c0ee5055ba021845057c8feffa27e306c1119100c5daac4a91",
-    "cid": "bafyrei2Xo3XBErNtQzBhhfbZnbcfNgKt7umUBS"
-  },
-  {
-    "index": 11,
-    "timestamp": "2026-08-30T09:04:11.516Z",
-    "eventType": "ai_decision",
-    "module": "Isabella",
-    "action": "episode.register",
-    "actor": "system",
-    "data": {
-      "episodeId": "f881a4e1b19c0063",
-      "context": "boot"
-    },
-    "prevHash": "006466478cb300c0ee5055ba021845057c8feffa27e306c1119100c5daac4a91",
-    "nonce": 249,
-    "hash": "009fe4a022ac952a7241816da810895a5004be498140165cc5bb3ffcd23c4ed0",
-    "cid": "bafyrei3SQo3ou4CHYK2dhCNjT7mfoqpq4PMrR4"
-  },
-  {
-    "index": 12,
-    "timestamp": "2026-08-30T09:04:11.525Z",
-    "eventType": "eoct_event",
-    "module": "EOCT",
-    "action": "system.boot",
-    "actor": "EOCT",
-    "data": {
-      "eventId": "fc5b6b09ff27e5a3"
-    },
-    "prevHash": "009fe4a022ac952a7241816da810895a5004be498140165cc5bb3ffcd23c4ed0",
-    "nonce": 25,
-    "hash": "00aed7d26b6fe3cc7c578aba60151628ca7ffbb70fd70866c346cb5366f92d4f",
-    "cid": "bafyrei3fdfL8B6CQnXfuLZEn7THv9i3XHNV1QT"
+// bookpi-ledger-verifier.ts
+// BookPI Ledger v5 — Isabella Nodo Cero
+// Ejecutar:
+//   pnpm tsx bookpi-ledger-verifier.ts ledger.json
+//
+// Códigos de salida:
+//   0 = ledger válido
+//   1 = ledger inválido
+//   2 = error de entrada o ejecución
+
+import { readFile, writeFile } from "node:fs/promises";
+import { createHash, createVerify } from "node:crypto";
+
+const ZERO_HASH = "0".repeat(64);
+const HASH_64 = /^[a-f0-9]{64}$/i;
+const CID_V1 = /^bafy[a-z2-9]{20,}$/;
+const MAX_EVENTS = 1_000_000;
+
+type ActorType =
+  | "user"
+  | "service"
+  | "agent"
+  | "system";
+
+type VerificationStatus =
+  | "pending"
+  | "verified"
+  | "invalid"
+  | "unverified";
+
+interface LegacyEvent {
+  index: number;
+  timestamp: string;
+  eventType: string;
+  module: string;
+  action: string;
+  actor: string;
+  data: Record<string, unknown>;
+  prevHash: string;
+  nonce: number;
+  hash: string;
+  cid?: string;
+  signature?: string;
+  keyId?: string;
+}
+
+interface BookPIEvent {
+  schema: "bookpi.event.v5";
+  eventId: string;
+  sequence: number;
+  timestamp: string;
+  eventType: string;
+  module: string;
+  action: string;
+  actor: {
+    type: ActorType;
+    id: string;
+    keyId?: string;
+  };
+  tenantId?: string;
+  requestId?: string;
+  traceId?: string;
+  policyVersion: string;
+  payload: Record<string, unknown>;
+  payloadHash: string | null;
+  previousEventHash: string;
+  eventHash: string;
+  nonce?: number;
+  signature?: {
+    algorithm: "Ed25519";
+    keyId: string;
+    value: string;
+  };
+  storage: {
+    provider:
+      | "supabase-postgres"
+      | "neon-postgres"
+      | "object-storage"
+      | "midnight"
+      | "legacy-json";
+    objectRef?: string;
+    contentAddress?: string;
+  };
+  verification: {
+    status: VerificationStatus;
+    verifiedAt?: string;
+  };
+}
+
+interface ValidationIssue {
+  code: string;
+  message: string;
+  sequence?: number;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  status: "verified" | "invalid" | "unverified";
+  checked: number;
+  total: number;
+  issues: ValidationIssue[];
+  warnings: string[];
+  firstInvalidSequence?: number;
+}
+
+interface NormalizedOutput {
+  schema: "bookpi.ledger.v5";
+  source: "legacy" | "bookpi-v5";
+  generatedAt: string;
+  validation: ValidationResult;
+  events: BookPIEvent[];
+}
+
+function canonical(value: unknown): string {
+  if (
+    value === null ||
+    typeof value !== "object"
+  ) {
+    return JSON.stringify(value);
   }
-]
+
+  if (Array.isArray(value)) {
+    return `[${value.map(canonical).join(",")}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return `{${Object.keys(record)
+    .sort()
+    .map(
+      (key) =>
+        `${JSON.stringify(key)}:${canonical(
+          record[key],
+        )}`,
+    )
+    .join(",")}}`;
+}
+
+function sha256(value: string): string {
+  return createHash("sha256")
+    .update(value, "utf8")
+    .digest("hex");
+}
+
+function sha3_512(value: string): string {
+  return createHash("sha3-512")
+    .update(value, "utf8")
+    .digest("hex");
+}
+
+function hashPayload(
+  payload: Record<string, unknown>,
+): string {
+  return sha3_512(canonical(payload));
+}
+
+function hashEvent(event: {
+  schema: string;
+  eventId: string;
+  sequence: number;
+  timestamp: string;
+  eventType: string;
+  module: string;
+  action: string;
+  actorId: string;
+  policyVersion: string;
+  payloadHash: string;
+  previousEventHash: string;
+}): string {
+  return sha256(canonical(event));
+}
+
+function isValidTimestamp(value: string): boolean {
+  return (
+    typeof value === "string" &&
+    !Number.isNaN(Date.parse(value))
+  );
+}
+
+function isValidActor(value: string): boolean {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 128
+  );
+}
+
+function isValidEventType(value: string): boolean {
+  return /^[a-z][a-z0-9_]{1,64}$/.test(value);
+}
+
+function isValidModule(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+function isValidAction(value: string): boolean {
+  return /^[a-z][a-z0-9_.-]{1,96}$/.test(value);
+}
+
+function isValidCid(value: string | undefined): boolean {
+  if (!value) return true;
+  return CID_V1.test(value);
+}
+
+function addIssue(
+  result: ValidationResult,
+  code: string,
+  message: string,
+  sequence?: number,
+): void {
+  result.issues.push({
+    code,
+    message,
+    sequence,
+  });
+
+  if (
+    result.firstInvalidSequence === undefined &&
+    sequence !== undefined
+  ) {
+    result.firstInvalidSequence = sequence;
+  }
+}
+
+function validateLegacyEvent(
+  event: LegacyEvent,
+  index: number,
+  total: number,
+  result: ValidationResult,
+): void {
+  if (event.index !== index) {
+    addIssue(
+      result,
+      "INDEX_INVALID",
+      `Índice esperado ${index}, recibido ${event.index}.`,
+      event.index,
+    );
+  }
+
+  if (
+    !Number.isSafeInteger(event.nonce) ||
+    event.nonce < 0
+  ) {
+    addIssue(
+      result,
+      "NONCE_INVALID",
+      "El nonce debe ser un entero seguro no negativo.",
+      event.index,
+    );
+  }
+
+  if (!isValidTimestamp(event.timestamp)) {
+    addIssue(
+      result,
+      "TIMESTAMP_INVALID",
+      "El timestamp no es válido.",
+      event.index,
+    );
+  }
+
+  if (!isValidEventType(event.eventType)) {
+    addIssue(
+      result,
+      "EVENT_TYPE_INVALID",
+      "eventType no cumple el formato permitido.",
+      event.index,
+    );
+  }
+
+  if (!isValidModule(event.module)) {
+    addIssue(
+      result,
+      "MODULE_INVALID",
+      "module no cumple el formato permitido.",
+      event.index,
+    );
+  }
+
+  if (!isValidAction(event.action)) {
+    addIssue(
+      result,
+      "ACTION_INVALID",
+      "action no cumple el formato permitido.",
+      event.index,
+    );
+  }
+
+  if (!isValidActor(event.actor)) {
+    addIssue(
+      result,
+      "ACTOR_INVALID",
+      "actor es obligatorio.",
+      event.index,
+    );
+  }
+
+  if (!HASH_64.test(event.prevHash)) {
+    addIssue(
+      result,
+      "PREVIOUS_HASH_INVALID",
+      "prevHash no contiene 64 caracteres hexadecimales.",
+      event.index,
+    );
+  }
+
+  if (!HASH_64.test(event.hash)) {
+    addIssue(
+      result,
+      "EVENT_HASH_INVALID",
+      "hash no contiene 64 caracteres hexadecimales.",
+      event.index,
+    );
+  }
+
+  if (!isValidCid(event.cid)) {
+    result.warnings.push(
+      `CID no validado en el evento ${event.index}.`,
+    );
+  }
+
+  if (index === 0 && event.prevHash !== ZERO_HASH) {
+    addIssue(
+      result,
+      "GENESIS_INVALID",
+      "El primer evento debe apuntar al hash cero.",
+      event.index,
+    );
+  }
+
+  if (index > 0) {
+    const previous = (
+      globalThis as unknown as {
+        __bookpi_events?: LegacyEvent[];
+      }
+    ).__bookpi_events?.[index - 1];
+
+    if (
+      previous &&
+      event.prevHash.toLowerCase() !==
+        previous.hash.toLowerCase()
+    ) {
+      addIssue(
+        result,
+        "CHAIN_LINK_INVALID",
+        "prevHash no coincide con el hash anterior.",
+        event.index,
+      );
+    }
+
+    if (
+      previous &&
+      Date.parse(event.timestamp) <
+        Date.parse(previous.timestamp)
+    ) {
+      addIssue(
+        result,
+        "TIMESTAMP_ORDER_INVALID",
+        "El timestamp retrocede respecto al evento anterior.",
+        event.index,
+      );
+    }
+  }
+
+  if (
+    event.eventType === "ai_decision" &&
+    event.action === "episode.register" &&
+    event.data?.context === "boot"
+  ) {
+    result.warnings.push(
+      `Evento episódico de boot detectado en ${event.index}.`,
+    );
+  }
+
+  if (index === total - 1) {
+    result.checked = total;
+  }
+}
+
+function validateLegacyLedger(
+  events: LegacyEvent[],
+): ValidationResult {
+  const result: ValidationResult = {
+    valid: true,
+    status: "verified",
+    checked: 0,
+    total: events.length,
+    issues: [],
+    warnings: [],
+  };
+
+  if (events.length === 0) {
+    return {
+      valid: false,
+      status: "unverified",
+      checked: 0,
+      total: 0,
+      issues: [
+        {
+          code: "EMPTY_LEDGER",
+          message: "El ledger está vacío.",
+        },
+      ],
+      warnings: [],
+    };
+  }
+
+  if (events.length > MAX_EVENTS) {
+    addIssue(
+      result,
+      "LEDGER_TOO_LARGE",
+      `El ledger supera el límite de ${MAX_EVENTS} eventos.`,
+    );
+  }
+
+  (
+    globalThis as unknown as {
+      __bookpi_events?: LegacyEvent[];
+    }
+  ).__bookpi_events = events;
+
+  for (let i = 0; i < events.length; i += 1) {
+    validateLegacyEvent(
+      events[i],
+      i,
+      events.length,
+      result,
+    );
+  }
+
+  delete (
+    globalThis as unknown as {
+      __bookpi_events?: LegacyEvent[];
+    }
+  ).__bookpi_events;
+
+  result.checked = events.length;
+  result.valid = result.issues.length === 0;
+  result.status = result.valid
+    ? result.warnings.length > 0
+      ? "unverified"
+      : "verified"
+    : "invalid";
+
+  return result;
+}
+
+function normalizeLegacy(
+  events: LegacyEvent[],
+): BookPIEvent[] {
+  return events.map((event) => {
+    const payloadHash = hashPayload(event.data);
+    const eventId =
+      typeof event.data.eventId === "string"
+        ? event.data.eventId
+        : `legacy-${event.index}`;
+
+    const policyVersion =
+      typeof event.data.version === "string"
+        ? event.data.version
+        : "unknown";
+
+    return {
+      schema: "bookpi.event.v5",
+      eventId,
+      sequence: event.index + 1,
+      timestamp: event.timestamp,
+      eventType: event.eventType,
+      module: event.module,
+      action: event.action,
+      actor: {
+        type:
+          event.actor === "system"
+            ? "system"
+            : "service",
+        id: event.actor,
+        ...(event.keyId
+          ? { keyId: event.keyId }
+          : {}),
+      },
+      policyVersion,
+      payload: event.data,
+      payloadHash,
+      previousEventHash: event.prevHash,
+      eventHash: event.hash,
+      nonce: event.nonce,
+      ...(event.signature && event.keyId
+        ? {
+            signature: {
+              algorithm: "Ed25519",
+              keyId: event.keyId,
+              value: event.signature,
+            },
+          }
+        : {}),
+      storage: event.cid
+        ? {
+            provider: "object-storage",
+            contentAddress: event.cid,
+          }
+        : {
+            provider: "legacy-json",
+          },
+      verification: {
+        status: "unverified",
+      },
+    };
+  });
+}
+
+function verifyNormalizedHashes(
+  events: BookPIEvent[],
+): ValidationResult {
+  const result: ValidationResult = {
+    valid: true,
+    status: "verified",
+    checked: 0,
+    total: events.length,
+    issues: [],
+    warnings: [],
+  };
+
+  for (let i = 0; i < events.length; i += 1) {
+    const event = events[i];
+
+    if (!event.payloadHash) {
+      result.status = "unverified";
+      result.warnings.push(
+        `payloadHash ausente en ${event.sequence}.`,
+      );
+      continue;
+    }
+
+    const calculatedPayloadHash = hashPayload(
+      event.payload,
+    );
+
+    if (
+      calculatedPayloadHash !== event.payloadHash
+    ) {
+      addIssue(
+        result,
+        "PAYLOAD_HASH_MISMATCH",
+        "El payloadHash no coincide.",
+        event.sequence,
+      );
+    }
+
+    const calculatedEventHash = hashEvent({
+      schema: event.schema,
+      eventId: event.eventId,
+      sequence: event.sequence,
+      timestamp: event.timestamp,
+      eventType: event.eventType,
+      module: event.module,
+      action: event.action,
+      actorId: event.actor.id,
+      policyVersion: event.policyVersion,
+      payloadHash: event.payloadHash,
+      previousEventHash: event.previousEventHash,
+    });
+
+    if (
+      calculatedEventHash !== event.eventHash
+    ) {
+      result.status = "unverified";
+      result.warnings.push(
+        `eventHash legacy no coincide en ${event.sequence}; el algoritmo original puede ser distinto.`,
+      );
+    }
+
+    result.checked += 1;
+  }
+
+  result.valid = result.issues.length === 0;
+
+  if (!result.valid) {
+    result.status = "invalid";
+  }
+
+  return result;
+}
+
+function printHumanSummary(
+  validation: ValidationResult,
+): void {
+  console.error("BookPI Ledger Validation");
+  console.error("========================");
+  console.error(`Valid: ${validation.valid}`);
+  console.error(`Status: ${validation.status}`);
+  console.error(
+    `Checked: ${validation.checked}/${validation.total}`,
+  );
+  console.error(`Issues: ${validation.issues.length}`);
+  console.error(
+    `Warnings: ${validation.warnings.length}`,
+  );
+
+  for (const issue of validation.issues) {
+    console.error(
+      `[${issue.code}] ${issue.message}`,
+    );
+  }
+
+  for (const warning of validation.warnings) {
+    console.error(`[WARNING] ${warning}`);
+  }
+}
+
+async function main(): Promise<void> {
+  const inputPath = process.argv[2];
+  const outputPath = process.argv[3];
+
+  if (!inputPath) {
+    console.error(
+      "Uso: pnpm tsx bookpi-ledger-verifier.ts ledger.json [normalized.json]",
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(
+      await readFile(inputPath, "utf8"),
+    );
+  } catch {
+    console.error(
+      "No fue posible leer o parsear el archivo JSON.",
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  if (!Array.isArray(parsed)) {
+    console.error(
+      "El archivo debe contener un arreglo JSON.",
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  const events = parsed as LegacyEvent[];
+  const structure = validateLegacyLedger(events);
+  const normalized = normalizeLegacy(events);
+  const hashes = verifyNormalizedHashes(normalized);
+
+  const combined: ValidationResult = {
+    valid: structure.valid && hashes.valid,
+    status:
+      !structure.valid || !hashes.valid
+        ? "invalid"
+        : structure.status === "unverified" ||
+            hashes.status === "unverified"
+          ? "unverified"
+          : "verified",
+    checked: structure.checked,
+    total: structure.total,
+    issues: [
+      ...structure.issues,
+      ...hashes.issues,
+    ],
+    warnings: [
+      ...structure.warnings,
+      ...hashes.warnings,
+    ],
+    firstInvalidSequence:
+      structure.firstInvalidSequence ??
+      hashes.firstInvalidSequence,
+  };
+
+  printHumanSummary(combined);
+
+  const output: NormalizedOutput = {
+    schema: "bookpi.ledger.v5",
+    source: "legacy",
+    generatedAt: new Date().toISOString(),
+    validation: combined,
+    events: normalized,
+  };
+
+  if (outputPath) {
+    await writeFile(
+      outputPath,
+      JSON.stringify(output, null, 2),
+      "utf8",
+    );
+    console.error(
+      `Normalized ledger written to ${outputPath}`,
+    );
+  }
+
+  console.log(JSON.stringify(output, null, 2));
+  process.exitCode = combined.valid ? 0 : 1;
+}
+
+void main();
