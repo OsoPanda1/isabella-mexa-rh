@@ -2,12 +2,6 @@ import type { NextFunction, Request, Response } from "express";
 import { buildCheckoutUrl, consumeUsage, stableUserId, type MeteredCapability, type UsageDecision } from "../lib/subscription.server";
 import { currentPrincipal } from "../lib/auth.server";
 
-declare module "express-serve-static-core" {
-  interface Request {
-    isabellaBilling?: { userId: string; decision: UsageDecision };
-  }
-}
-
 type Bucket = { count: number; resetAt: number };
 
 const WINDOW_MS = 60_000;

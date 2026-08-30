@@ -67,9 +67,13 @@ async function mintGuestToken() {
     throw new Error(`guest session status: expected 200/201, got ${sessionRes.status}`);
   }
   const session = await sessionRes.json();
-  const token = session.token ?? session.data?.token;
-  if (!token) throw new Error("guest session missing token");
-  return token;
+  if (!session.ok || !session.principal) {
+    throw new Error("guest session response is invalid");
+  }
+  const sessionCookie = sessionRes.headers.get("set-cookie")?.match(/__Host-isa_session=([^;]+)/)?.[1];
+  if (!sessionCookie) throw new Error("guest session cookie missing");
+  cookieHeader = `${cookieHeader ? `${cookieHeader}; ` : ""}__Host-isa_session=${sessionCookie}`;
+  return session.principal;
 }
 
 // 1. Inicialización de token CSRF
@@ -106,10 +110,9 @@ await check("kill-switch status never 5xx for anonymous callers", async () => {
 });
 
 await check("invalid chat body answers 400 VALIDATION_ERROR", async () => {
-  const token = await mintGuestToken();
+  await mintGuestToken();
   const res = await request("/api/isabella/process", {
     method: "POST",
-    headers: { authorization: `Bearer ${token}` },
     body: JSON.stringify({ activePreset: "not-a-real-preset" }),
   });
   assertStatus(res.status, 400, "invalid body status");
@@ -120,8 +123,8 @@ await check("invalid chat body answers 400 VALIDATION_ERROR", async () => {
 });
 
 await check("voice health endpoint answers with availability report", async () => {
-  const token = await mintGuestToken();
-  const res = await request("/api/voice/health", { headers: { authorization: `Bearer ${token}` } });
+  await mintGuestToken();
+  const res = await request("/api/voice/health");
   assertStatus(res.status, 200, "voice health status");
   const body = await res.json();
   if (!body.availability) throw new Error("voice health lacks availability");

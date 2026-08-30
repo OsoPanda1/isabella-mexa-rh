@@ -2,7 +2,11 @@ const SECRET_KEYS = ["ISABELLA_AUTH_SECRET", "API_KEY_PEPPER", "SUPABASE_SERVICE
 const PLACEHOLDER = /^(|changeme|change-me|your_.+|YOUR_.+|example|dev-secret|secret|password)$/i;
 
 export function assertStrictEnv(): void {
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  // Vite sirve previews con NODE_ENV=production; solo VERCEL_ENV=production
+  // o el opt-in explícito deben activar el bloqueo estricto de secretos.
+  const isProduction =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.ISABELLA_STRICT_ENV === "true";
   if (!isProduction) return;
   const missing = SECRET_KEYS.filter((key) => PLACEHOLDER.test(String(process.env[key] || "")));
   if (missing.length > 0) {

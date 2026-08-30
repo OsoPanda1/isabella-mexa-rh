@@ -4,11 +4,6 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { Request, Response, NextFunction } from "express";
 
-declare module "express-serve-static-core" {
-  interface Request {
-    quantumBridge?: { input: QuantumBridgeRequest; policy: QuantumPolicyVerdict };
-  }
-}
 import { appendBlock } from "./bookpi.server";
 import { metrics, recordAudit } from "./atlas-kernel.server";
 import { currentPrincipal } from "./auth.server";

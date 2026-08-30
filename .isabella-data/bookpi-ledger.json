@@ -1,0 +1,50 @@
+[
+  {
+    "index": 0,
+    "timestamp": "2026-08-30T04:41:20.750Z",
+    "eventType": "kernel_boot",
+    "module": "BookPI",
+    "action": "ledger.init",
+    "actor": "system",
+    "data": {
+      "version": "4.2.0-PQC",
+      "difficulty": 2,
+      "persistence": "durable-json"
+    },
+    "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "nonce": 436,
+    "hash": "00551bc664011e91c358d6a8e79ba186d57d0b0f47c01811794d6289c323b4ed",
+    "cid": "bafyrei2JGgaQnXAQBRrvCRAqoCfQy8qv1VtPFz"
+  },
+  {
+    "index": 1,
+    "timestamp": "2026-08-30T04:41:20.754Z",
+    "eventType": "ai_decision",
+    "module": "Isabella",
+    "action": "episode.register",
+    "actor": "system",
+    "data": {
+      "episodeId": "b9b6ebcaef0bea7f",
+      "context": "boot"
+    },
+    "prevHash": "00551bc664011e91c358d6a8e79ba186d57d0b0f47c01811794d6289c323b4ed",
+    "nonce": 100,
+    "hash": "00423be8a772913193a03eab145ec7726ce1f79fd3d90d9d16962c3ed0d07bcd",
+    "cid": "bafyrei21aWPayqSUiRv4FzB9YmV5yaUziXejH8"
+  },
+  {
+    "index": 2,
+    "timestamp": "2026-08-30T04:41:20.756Z",
+    "eventType": "eoct_event",
+    "module": "EOCT",
+    "action": "system.boot",
+    "actor": "EOCT",
+    "data": {
+      "eventId": "af87c8f59138dab6"
+    },
+    "prevHash": "00423be8a772913193a03eab145ec7726ce1f79fd3d90d9d16962c3ed0d07bcd",
+    "nonce": 404,
+    "hash": "007710283a774c4a99cdb1fc791d9c8dbf7428afcede14b0f25981fc95529f46",
+    "cid": "bafyrei2pJQGnaGdEn7JKHxJLxTgyMce14P8ByB"
+  }
+]
