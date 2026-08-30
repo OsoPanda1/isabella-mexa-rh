@@ -2,7 +2,7 @@
 
 > **Infraestructura Cognitiva Territorial Soberana** · Real del Monte, Hidalgo, México
 > **Autor & Arquitecto:** Edwin Oswaldo Castillo Trejo (*Anubis Villaseñor*) · ORCID [0009-0008-5050-1539](https://orcid.org/0009-0008-5050-1539)
-> **Versión:** `v5.3.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 221 tests · ~80% prod`
+> **Versión:** `v5.4.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 267 tests · ~80% prod`
 
 ---
 
@@ -24,6 +24,8 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
 | Atestación TEE / HSM | **SIMULADO** | `automation/mesh.ts`, `automation/registry.ts` indican `MOCK — no conectado a SGX/TrustZone/SEV real`. |
 | Criptografía Post-Quantum (ML-KEM/ML-DSA) | **Lab-only** | Requiere `FEATURE_LAB_MODE=true`; en producción se omite, no se falsifica. |
 | Telemetría cinemática del trailer | **SIMULADA y etiquetada** | `IsabellaCinematicTrailer` declara `SIMULATION MODE` y `telemetry: SIMULATED` por diseño. |
+| Intro inmersiva (WebGL 3D + canvas 2D + audio) | **Real** | `ImmersiveScene` + calidad adaptativa (low/medium/high) por capacidad del dispositivo; audio posicional solo tras gesto del usuario. |
+| Contexto de request transitivo (correlación/tenant/principal/policy) | **Real** | `src/core/context/*` W1, tenancy con comparación tiempo-constante (ADR-0003). |
 | Economía / Wallet | **Prototipo** | En memoria; idempotente por `eventId`, invariante de doble entrada, máquina de estados de pago. Sin dinero real. |
 
 > Ningún dato se presenta en la UI como "verificado"/"immutable"/"live" sin una
@@ -77,6 +79,38 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
 
 ---
 
+## Endurecimiento actual (v5.4.0)
+
+- **Intro cinematográfica evolucionada:** nuevo motor `ImmersiveScene` (WebGL
+  3D + capa 2D twinkle + audio posicional) con calidad adaptativa
+  (`detectQuality`: low/medium/high según devicePixelRatio y GPU), pausa por
+  tab oculta, recuperación de pérdida de contexto WebGL y respeto a
+  `prefers-reduced-motion`. Se integra en `App.tsx` vía `IsabellaImmersiveTrailer`
+  en ambos gates de entrada; el trailer clásico queda como fallback.
+- **W0 — Higiene de entorno y CI:** `.gitignore` ampliado (`.env*`, `*.db*`,
+  `dist/`, `.isabella-*`); `.env` raíz neutralizado (ignorado); `prisma7.config.ts`
+  apunta a `.env.local`; `DIRECT_URL` añadido al contrato de entorno
+  (`check-env.ts` · `.env.example`); nuevo workflow
+  `.github/workflows/ci.yml` con jobs `verify` (check:env+lint+test+build) y
+  `hygiene` (veta `.env`/`*.db*` trackeados).
+- **W1 — Contexto de request cero confianza (transitivo):** en
+  `src/core/context/`, nuevos `correlation-context`, `principal-context`,
+  `tenant-context` (comparación de tenant **tiempo-constante**) y
+  `policy-context` (fail-closed), compuestos por `createRequestFlowContext`.
+  Los hijos derivan del padre (`deriveChildFlow`) sin re-autenticar. Se
+  complementa con, y no duplica, `src/lib/authz/` (motor PDP). Tests en
+  `tests/security/request-flow-context.test.ts`.
+- **Despliegue de dependencias:** `pnpm approve-builds` para scripts nativos
+  (better-sqlite3, prisma, esbuild); `pnpm-workspace.yaml` excluye `tsx`/`zod`
+  de la política de `minimumReleaseAge` (dependencias legítimas ya fijadas en
+  el lockfile).
+
+> **Hoja de ruta de endurecimiento** (W0–W12) en
+> `docs/roadmap/ATLAS_HARDENING.md`: CIX (MCP), circuit breakers, retries,
+> colas durables, outbox, quantum, Braintrust y Stripe por webhook verificado.
+
+---
+
 ## Qué es
 
 Isabella Villaseñor AI es un sistema operativo cognitivo gobernado y una
@@ -94,13 +128,16 @@ cinemático (`IsabellaCinematicTrailer`).
 │  Cliente SPA (Vite + React 19 + TypeScript strict)                    │
 │  • src/main.tsx · index.html                                           │
 │  • Estado central: src/context/CrownContext.tsx                       │
-│  • Portal cinemático: src/components/IsabellaCinematicTrailer.tsx     │
+│  • Intro inmersiva: src/components/IsabellaImmersiveTrailer.tsx       │
+│    (ImmersiveScene: WebGL 3D + capa 2D + audio)                       │
+│  • Portal cinemático (fallback): IsabellaCinematicTrailer.tsx         │
 └───────────────────────────┬──────────────────────────────────────────┘
                             │  HTTP / JSONL
 ┌───────────────────────────▼──────────────────────────────────────────┐
 │  Gateway (Express en server.ts · serverless en api/[...path].ts)        │
 │  • Firewall de peticiones, rate limiting, tipado                       │
 │  • Módulos: ISA / SOPHIA / ORION / ARGUS / CROWN                       │
+│  • Contexto de request transitivo: src/core/context/* (W1)             │
 │  • Persistencia: store-authority (Postgres > SQLite > memoria/JSON)    │
 └───────────────────────────┬──────────────────────────────────────────┘
                             │  autorización externalizada (fail-closed)
@@ -235,11 +272,11 @@ medidos). Peso por criticidad.
 | Dimensión | % | Peso |
 |---|---|---|
 | Compilación y tipado (`tsc` 0 errores, `vite build` OK) | 95 | 10% |
-| Pruebas automatizadas (216 frontend + 5 JDR, todas verdes) | 78 | 12% |
+| Pruebas automatizadas (267 frontend + 5 JDR, todas verdes) | 80 | 12% |
 | Seguridad de dependencias (npm audit 0; Maven pendiente de scan) | 88 | 12% |
-| AuthN/AuthZ Zero-Trust (PDP externo, ABAC, tenant, kill-switch) | 85 | 14% |
+| AuthN/AuthZ Zero-Trust (PDP externo, ABAC, tenant, contexto transitivo W1, kill-switch) | 88 | 14% |
 | Honestidad de datos (etiquetas DEMO, sin falsificar "verificado") | 92 | 10% |
-| Resiliencia/runtime (rate-limit, cold-start, circuit-breaker) | 82 | 10% |
+| Resiliencia/runtime (rate-limit, cold-start, circuit-breaker, intro adaptativa) | 84 | 10% |
 | Persistencia durable (ledger SIMULADO; JDR no cableado al FE) | 55 | 12% |
 | Observabilidad (actuator JDR, telemetría FE limitada) | 65 | 6% |
 | CI/CD y coherencia Vercel/Docker | 88 | 8% |
