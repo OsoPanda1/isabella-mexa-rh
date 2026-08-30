@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="silver-sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b8c1ca" stop-opacity="0.4"/>
+      <stop offset="50%" stop-color="#f6f7f8"/>
+      <stop offset="100%" stop-color="#929da8" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="ore-dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3d4852"/>
+      <stop offset="100%" stop-color="#1a2028"/>
+    </linearGradient>
+    <linearGradient id="silver-bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#edf0f2"/>
+      <stop offset="50%" stop-color="#b8c1ca"/>
+      <stop offset="100%" stop-color="#6f7b87"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#silver-sheen)" opacity="0.3"/>
+  <path d="M8 50l12-26h24l12 26H8z" fill="url(#ore-dark)" stroke="#515c68" stroke-width="1.2"/>
+  <polygon points="8,50 32,30 56,50" fill="none" stroke="url(#silver-sheen)" stroke-width="1.5"/>
+  <rect x="18" y="36" width="28" height="6" rx="2" fill="url(#silver-bar)" stroke="#515c68" stroke-width="0.8"/>
+  <rect x="22" y="45" width="20" height="5" rx="2" fill="url(#silver-bar)" stroke="#515c68" stroke-width="0.8"/>
+  <path d="M26 34v-8M32 34v-10M38 34v-8" stroke="#b8c1ca" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="29" cy="24" r="1.3" fill="#e0bb5d"/>
+  <circle cx="35" cy="22" r="1" fill="#e0bb5d"/>
+</svg>

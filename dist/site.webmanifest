@@ -1,0 +1,20 @@
+{
+  "name": "Isabella Villaseñor AI",
+  "short_name": "Isabella AI",
+  "description": "Espacio de trabajo para inteligencia aplicada.",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080b10",
+  "theme_color": "#080b10",
+  "icons": [
+    {
+      "src": "/isabella-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
