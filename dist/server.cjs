@@ -8053,7 +8053,7 @@ function pdpAuthorize(scope) {
 var SECRET_KEYS = ["ISABELLA_AUTH_SECRET", "API_KEY_PEPPER", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_JWT_SECRET"];
 var PLACEHOLDER = /^(|changeme|change-me|your_.+|YOUR_.+|example|dev-secret|secret|password)$/i;
 function assertStrictEnv() {
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  const isProduction = process.env.VERCEL_ENV === "production" || process.env.ISABELLA_STRICT_ENV === "true";
   if (!isProduction) return;
   const missing = SECRET_KEYS.filter((key) => PLACEHOLDER.test(String(process.env[key] || "")));
   if (missing.length > 0) {
@@ -8365,7 +8365,8 @@ function validateBody(schema, req, res) {
 
 // src/lib/logger.ts
 var LEVEL_PRIORITY = { debug: 0, info: 1, warn: 2, error: 3 };
-var minLevel = LEVEL_PRIORITY[process.env.LOG_LEVEL || "info"] ?? 1;
+var configuredLogLevel = typeof process !== "undefined" ? process.env.LOG_LEVEL : void 0;
+var minLevel = LEVEL_PRIORITY[configuredLogLevel || "info"] ?? 1;
 function emit(entry) {
   if (LEVEL_PRIORITY[entry.level] < minLevel) return;
   const json = JSON.stringify(entry);

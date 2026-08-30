@@ -21,7 +21,12 @@ interface LogEntry {
 }
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
-const minLevel = LEVEL_PRIORITY[(process.env.LOG_LEVEL as LogLevel) || "info"] ?? 1;
+
+// Este módulo se comparte entre Express y el navegador; `process` no existe
+// en el bundle Vite del cliente.
+const configuredLogLevel =
+  typeof process !== "undefined" ? process.env.LOG_LEVEL : undefined;
+const minLevel = LEVEL_PRIORITY[(configuredLogLevel as LogLevel) || "info"] ?? 1;
 
 function emit(entry: LogEntry): void {
   if (LEVEL_PRIORITY[entry.level] < minLevel) return;

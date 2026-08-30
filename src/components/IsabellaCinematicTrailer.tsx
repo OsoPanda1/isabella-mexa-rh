@@ -409,17 +409,25 @@ export function IsabellaCinematicTrailer({
     if (!canvas) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let resizeFrame = 0;
+    let lastWidth = 0;
+    let lastHeight = 0;
     const resize = () => {
       const w = canvas.clientWidth || window.innerWidth;
       const h = canvas.clientHeight || window.innerHeight;
+      if (w === lastWidth && h === lastHeight) return;
+      lastWidth = w;
+      lastHeight = h;
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
       drawStateRef.current = buildDrawState(w, h, dpr);
     };
+    const scheduleResize = () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(resize);
+    };
     resize();
-
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    window.addEventListener("resize", scheduleResize, { passive: true });
 
     if (reducedMotion) {
       elapsedRef.current = DURATION_MS;
@@ -427,7 +435,10 @@ export function IsabellaCinematicTrailer({
       if (drawStateRef.current) {
         drawFrame(canvas, drawStateRef.current, DURATION_MS, cueFor(DURATION_MS), { bass: 0, mid: 0, treble: 0 });
       }
-      return () => ro.disconnect();
+      return () => {
+        cancelAnimationFrame(resizeFrame);
+        window.removeEventListener("resize", scheduleResize);
+      };
     }
 
     let last = performance.now();
@@ -452,7 +463,8 @@ export function IsabellaCinematicTrailer({
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      ro.disconnect();
+      cancelAnimationFrame(resizeFrame);
+      window.removeEventListener("resize", scheduleResize);
     };
   }, [reducedMotion, finish]);
 

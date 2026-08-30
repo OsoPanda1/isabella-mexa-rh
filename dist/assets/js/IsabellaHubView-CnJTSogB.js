@@ -1,4 +1,4 @@
-import{r as a,j as e}from"./vendor-framework-C9BmP58X.js";import{s as l,a as f}from"./index-CekWNWVb.js";import{a as Me,S as C,a1 as B,ad as Be,a9 as oe,P as w,C as N,am as le,$ as Ue,s as _,Y as ze,d as ne,g as qe,Z as ie,_ as Ge,r as He,an as Xe,a7 as $e,ao as Ye,m as ce,L as Je}from"./vendor-ui-D8NrXAY6.js";const U=`-- ====================================================================
+import{r as a,j as e}from"./vendor-framework-C9BmP58X.js";import{s as l,a as f}from"./index-CLE3q_t4.js";import{a as Me,S as C,a1 as B,ad as Be,a9 as oe,P as w,C as N,am as le,$ as Ue,s as _,Y as ze,d as ne,g as qe,Z as ie,_ as Ge,r as He,an as Xe,a7 as $e,ao as Ye,m as ce,L as Je}from"./vendor-ui-D8NrXAY6.js";const U=`-- ====================================================================
 -- MIGRATION: 001_create_isabella_tables.sql
 -- Subsystem: Isabella Villaseñor AI Core Tables (Nodo Cero / RDM Digital)
 -- Target: PostgreSQL 14+ / Supabase
