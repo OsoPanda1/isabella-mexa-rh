@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { buildCheckoutUrl, consumeUsage, stableUserId, type MeteredCapability, type UsageDecision } from "../lib/subscription.server";
 import { currentPrincipal } from "../lib/auth.server";
+import { nodeRequire } from "../lib/node-require";
 
 type Bucket = { count: number; resetAt: number };
 
@@ -9,8 +10,46 @@ const DEFAULT_LIMIT = 120;
 const MEMORY_BUCKETS = new Map<string, Bucket>();
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const REDIS_ENABLED = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+const REDIS_URL = process.env.REDIS_URL;
+const REDIS_ENABLED = Boolean(REDIS_URL || (UPSTASH_URL && UPSTASH_TOKEN));
 const REQUIRE_DISTRIBUTED_RATE_LIMIT = process.env.REQUIRE_DISTRIBUTED_RATE_LIMIT === "true";
+
+// Cliente Redis de conexión directa (ioredis), si se provee REDIS_URL.
+// lazyConnect evita abrir sockets hasta la primera petición (serverless). El
+// backend directo (REDIS_URL) tiene prioridad sobre Upstash REST; ambos pueden
+// coexistir. Si ioredis no está disponible (bundle serverless) se degrada a
+// Upstash REST o memoria sin romper el flujo.
+type RedisLike = {
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<unknown>;
+  ttl(key: string): Promise<number>;
+  quit(): Promise<unknown>;
+};
+let directClient: RedisLike | null = null;
+let directClientError: unknown = null;
+
+function getDirectRedis(): RedisLike | null {
+  if (!REDIS_URL) return null;
+  if (directClient) return directClient;
+  if (directClientError) return null;
+  try {
+    const RedisCtor = nodeRequire("ioredis") as unknown as new (url: string, opts: Record<string, unknown>) => RedisLike;
+    directClient = new RedisCtor(REDIS_URL, {
+      lazyConnect: true,
+      connectTimeout: 3000,
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: true,
+      retryStrategy: () => null,
+    });
+    // Enciende la conexión de forma asíncrona; los errores no deben tumbar el
+    // proceso: se degrada a Upstash REST / memoria.
+    Promise.resolve((directClient as unknown as { connect(): Promise<unknown> }).connect?.()).catch(() => undefined);
+    return directClient;
+  } catch (err) {
+    directClientError = err;
+    return null;
+  }
+}
 
 setInterval(() => {
   const now = Date.now();
@@ -32,8 +71,19 @@ function clientKey(req: Request): string {
   return `rl:${tenant}:${subject}`;
 }
 
-async function redisIncrement(key: string): Promise<Bucket | null> {
-  if (!REDIS_ENABLED) return null;
+async function directRedisIncrement(key: string): Promise<Bucket | null> {
+  const client = getDirectRedis();
+  if (!client) return null;
+  const count = await client.incr(key);
+  if (count === 1) {
+    await client.expire(key, Math.ceil(WINDOW_MS / 1000));
+  }
+  const ttl = await client.ttl(key).catch(() => Math.ceil(WINDOW_MS / 1000));
+  return { count, resetAt: Date.now() + Math.max(1, typeof ttl === "number" ? ttl : 60) * 1000 };
+}
+
+async function upstashIncrement(key: string): Promise<Bucket | null> {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
   const encoded = encodeURIComponent(key);
   const auth = { Authorization: `Bearer ${UPSTASH_TOKEN}` };
   const incrResponse = await fetch(`${UPSTASH_URL}/incr/${encoded}`, { headers: auth });
@@ -45,6 +95,15 @@ async function redisIncrement(key: string): Promise<Bucket | null> {
   const ttlResponse = await fetch(`${UPSTASH_URL}/ttl/${encoded}`, { headers: auth });
   const ttl = ttlResponse.ok ? ((await ttlResponse.json()) as { result?: number }).result : Math.ceil(WINDOW_MS / 1000);
   return { count: incr.result ?? 1, resetAt: Date.now() + Math.max(1, ttl ?? 60) * 1000 };
+}
+
+async function redisIncrement(key: string): Promise<Bucket | null> {
+  if (!REDIS_ENABLED) return null;
+  const direct = await directRedisIncrement(key);
+  if (direct) return direct;
+  const upstash = await upstashIncrement(key);
+  if (upstash) return upstash;
+  return null;
 }
 
 function memoryIncrement(key: string): Bucket {

@@ -1,0 +1,34 @@
+# AI-RISK-0001 — Fuga de datos entre tenants
+#
+# Registro de Riesgo de IA (AI Risk Register) — versionado.
+# Estructura alineada con supervisión humana UNESCO/ONU y controles WEF.
+# Este registro se rehidrata en el runtime (src/lib/governance/risk.ts).
+
+risk_id: AI-RISK-0001
+title: Fuga de datos entre tenants
+system: Isabella
+component: memory-retrieval
+owner: security-owner                      # DEBE ser una persona/rol con autoridad
+status: open                               # open | mitigating | accepted | closed
+
+likelihood: possible                       # rare | possible | probable | almost-certain
+impact: critical                           # low | medium | high | critical
+inherent_risk: high
+residual_risk: critical                    # sin evidencia no se reduce
+
+tier: PROHIBITED                           # LOW | MEDIUM | HIGH | CRITICAL | PROHIBITED
+human_rights: [privacy, security]
+prohibited: true
+requires_human_approval: true
+
+existing_controls:
+  - tenant-isolation
+mitigations:
+  - backend-tenant-derivation
+acceptance_criteria:
+  - "Test automatizado de aislamiento entre tenants pasa sin excepción."
+  - "Ningún dato cross-tenant visible vía API de recuperación."
+evidence_refs: []
+notes: >
+  No se cierra por tener política escrita: exige evidencia técnica
+  (tenant-isolation-test) registrada en evidence_refs.

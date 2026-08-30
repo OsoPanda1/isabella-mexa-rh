@@ -1,0 +1,40 @@
+# CR-2026-0001 — Cambio: infraestructura crítica + gobernanza
+
+format_version: "1.0"
+id: CR-2026-0001
+created_at: 2026-08-30
+changed_by: platform-owner
+
+component: infra+governance
+change_type: infra
+summary: >
+  Migración a infraestructura real (Neon, Redis, Stripe) y primer marco de
+  gobernanza (risk register, approval gate H0-H4, provenance, cards).
+
+risk: high
+owner: platform-owner
+
+tests:
+  - tenant-isolation-test
+  - governance-test
+  - billing-test
+  - middleware-rate-limit-test
+
+rollback: available
+
+approvals:
+  - role: AI Governance Board
+    decision: approved
+    date: 2026-08-30
+
+release_readiness:
+  ok: true
+  blockers: []
+
+linked_artefacts:
+  - governance/risk-register/AI-RISK-0001.yaml
+  - governance/risk-register/AI-RISK-0002.yaml
+  - governance/risk-register/AI-RISK-0004.yaml
+  - governance/model-cards/isabella-sovereign.md
+  - governance/system-cards/isabella-5-3-0.md
+  - governance/data-sheets/user-data.md

@@ -1,0 +1,30 @@
+# AI-RISK-0002 — Alucinación presentada como hecho verificado
+
+risk_id: AI-RISK-0002
+title: Alucinación presentada como hecho verificado
+system: Isabella
+component: inference
+owner: model-owner
+status: mitigating
+
+likelihood: probable
+impact: high
+inherent_risk: high
+residual_risk: high
+
+tier: HIGH
+human_rights: [information]
+prohibited: false
+requires_human_approval: true
+
+existing_controls:
+  - epistemic-rating
+mitigations:
+  - claim-radar
+acceptance_criteria:
+  - "Toda salida factual incluye provenance y nivel de confianza epistémico."
+  - "Nunca se afirma 'verificado' sin evidencia."
+evidence_refs: []
+notes: >
+  Isabella puede contener errores. La transparencia prohíbe presentar
+  alucinaciones como hechos comprobados; se expone incertidumbre.

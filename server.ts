@@ -34,6 +34,15 @@ import {
   type IsabellaPlanId,
 } from "./src/lib/subscription.server";
 import {
+  createStripeCheckoutSession,
+  ensureStripeCatalog,
+  handleStripeWebhook,
+} from "./src/lib/billing/stripe";
+import { humanApprovalGate } from "./src/lib/governance/human-approval";
+import { seedRiskRegister, riskRegister } from "./src/lib/governance/seed-risk-register";
+import { buildProvenance, requireHumanReview } from "./src/lib/governance/provenance";
+import { isReleaseReady, type ChangeRecord } from "./src/lib/governance/change";
+import {
   validateBody,
   PerceptionInputSchema,
   CognitiveProcessSchema,
@@ -149,7 +158,16 @@ if (process.env.ISABELLA_AUTHZ_EXPORT_NATIVE_KEY === "true") {
   }
 }
 
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    // Conserva el buffer crudo (requerido para verificar firmas de webhook de
+    // Stripe) sin romper el parsing JSON de las demás rutas.
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.disable("x-powered-by");
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -487,14 +505,78 @@ app.post("/api/v1/billing/checkout", rateLimit, authenticate, requireScope("bill
   res.json({ ok: true, checkoutUrl: buildCheckoutUrl(requestedPlan, userId), planId: requestedPlan });
 });
 
-app.get("/api/v1/billing/checkout/mock", authenticate, requireRole("admin"), (req, res) => {
-  if (process.env.NODE_ENV === "production" || process.env.ENABLE_MOCK_CHECKOUT !== "true") {
-    return res.status(404).json({ ok: false, error: "Mock checkout is disabled outside explicit development mode." });
-  }
+// Checkout real con Stripe: crea una Checkout Session y redirige al cliente.
+app.get("/api/v1/billing/checkout/provider", authenticate, async (req, res) => {
   const plan = String(req.query.plan || "plus") as IsabellaPlanId;
   const { userId } = getBillingIdentity(req);
-  const applied = setUserPlan(userId, plan);
-  res.json({ ok: true, mode: "mock-checkout-dev-only", user: userId, plan: applied });
+  if (plan === "free" || plan === "custom") {
+    return res.status(400).json({ ok: false, error: "Selecciona plus, premium, vip o enterprise para checkout." });
+  }
+  await ensureStripeCatalog();
+  const session = await createStripeCheckoutSession(plan, userId);
+  if (!session?.url) {
+    return res.status(503).json({ ok: false, error: { code: "STRIPE_UNAVAILABLE", message: "No se pudo iniciar el checkout con Stripe. Verifica STRIPE_SECRET_KEY." } });
+  }
+  return res.redirect(303, session.url);
+});
+
+// Webhook de Stripe (requiere raw body y firma de Stripe).
+app.post(
+  "/api/v1/billing/webhooks/stripe",
+  express.raw({ type: "*/*" }),
+  async (req, res) => {
+    const signature = String(req.headers["stripe-signature"] || "");
+    const raw = (req as express.Request & { rawBody?: Buffer }).rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
+    const result = await handleStripeWebhook(raw, signature);
+    if (!result.received) {
+      return res.status(400).json({ ok: false, error: result.error });
+    }
+    return res.json({ received: true });
+  },
+);
+
+// ─── Governance Endpoints ───────────────────────────────────────────────────
+seedRiskRegister();
+
+app.get("/api/v1/governance/risk-register", authenticate, (req, res) => {
+  const risks = riskRegister.list().map((r) => ({
+    riskId: r.riskId,
+    title: r.title,
+    component: r.component,
+    owner: r.owner,
+    riskTier: r.riskTier,
+    inherentRisk: r.inherentRisk,
+    residualRisk: r.residualRisk,
+    status: r.status,
+    prohibited: r.prohibited,
+    humanRights: r.humanRights,
+    evidenceRefs: r.evidenceRefs,
+  }));
+  res.json({ ok: true, framework: "UNESCO / ONU / WEF (referencias de diseño)", risks });
+});
+
+app.get("/api/v1/governance/readiness", authenticate, requireRole("admin"), (req, res) => {
+  const blocking = riskRegister.blockingForProduction();
+  res.json({
+    ok: true,
+    productionReady: blocking.length === 0,
+    blocking,
+    requiredArtefacts: {
+      modelCards: true,
+      systemCards: true,
+      dataSheets: true,
+      aiTransparencyNotice: true,
+      humanOversightPolicy: true,
+    },
+  });
+});
+
+app.get("/api/v1/governance/provenance", authenticate, (req, res) => {
+  res.json({
+    ok: true,
+    ...buildProvenance({ dataOrigin: process.env.NODE_ENV === "production" ? "live" : "local" }),
+    humanReviewForHighRisk: requireHumanReview(true),
+  });
 });
 
 // ─── Platform Feature Flags Endpoint ──────────────────────────────────────
@@ -2354,6 +2436,16 @@ async function startServer() {
       log.info("postgres_status", { healthy, host: process.env.POSTGRES_HOST || "unknown" });
     } catch (err: unknown) {
       log.warn("postgres_init_failed", { error: toErrorMessage(err) });
+    }
+  }
+
+  // Sync Stripe catalog (crea/recupera productos y precios -25% mercado).
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      const ok = await ensureStripeCatalog();
+      log.info("stripe_catalog_sync", { ok });
+    } catch (err: unknown) {
+      log.warn("stripe_catalog_sync_failed", { error: toErrorMessage(err) });
     }
   }
 

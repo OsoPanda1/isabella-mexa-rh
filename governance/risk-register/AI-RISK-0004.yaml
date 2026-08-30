@@ -1,0 +1,30 @@
+# AI-RISK-0004 — Decisión automática sin revisión humana
+
+risk_id: AI-RISK-0004
+title: Decisión automática sin revisión humana
+system: Isabella
+component: orchestration
+owner: privacy-owner
+status: open
+
+likelihood: possible
+impact: high
+inherent_risk: high
+residual_risk: high
+
+tier: PROHIBITED
+human_rights: [due-process]
+prohibited: true
+requires_human_approval: true
+
+existing_controls:
+  - human-oversight
+mitigations:
+  - approval-gate              # src/lib/governance/human-approval.ts (H0-H4)
+acceptance_criteria:
+  - "Las acciones de alto impacto requieren aprobación humana real (H2+/H4), no solo un botón."
+  - "Queda registro auditable de cada decisión humana."
+evidence_refs: []
+notes: >
+  La supervisión humana es un control nativo (HumanApproval contract), no un
+  parche de interfaz. H4 reserva la decisión exclusivamente a humanos.

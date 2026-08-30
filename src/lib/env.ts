@@ -12,8 +12,10 @@ export function assertStrictEnv(): void {
   if (missing.length > 0) {
     throw new Error(`Production secrets must be provided via environment manager: ${missing.join(", ")}`);
   }
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    throw new Error("Production requires Upstash Redis REST credentials for distributed sessions and rate limiting.");
+  const hasDirectRedis = Boolean(process.env.REDIS_URL);
+  const hasUpstash = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  if (!hasDirectRedis && !hasUpstash) {
+    throw new Error("Production requires Redis credentials for distributed rate limiting (REDIS_URL or UPSTASH_REDIS_REST_URL/TOKEN).");
   }
   const origins = (process.env.CANONICAL_ORIGINS || "").split(",").filter(Boolean);
   if (origins.length === 0) throw new Error("Production requires CANONICAL_ORIGINS for strict CORS.");

@@ -56,8 +56,8 @@ export const ISABELLA_PLANS: IsabellaPlan[] = [
   },
   {
     id: "plus",
-    name: "Isabella Plus Introducción",
-    monthlyUsd: 10,
+    name: "Isabella Plus",
+    monthlyUsd: 15,
     dailyMessages: 250,
     dailyImages: 40,
     dailyVoiceSeconds: 1800,
@@ -68,7 +68,7 @@ export const ISABELLA_PLANS: IsabellaPlan[] = [
   {
     id: "premium",
     name: "Isabella Premium",
-    monthlyUsd: 15,
+    monthlyUsd: 22.49,
     dailyMessages: 600,
     dailyImages: 100,
     dailyVoiceSeconds: 5400,
@@ -79,7 +79,7 @@ export const ISABELLA_PLANS: IsabellaPlan[] = [
   {
     id: "vip",
     name: "Isabella VIP",
-    monthlyUsd: 25,
+    monthlyUsd: 37.49,
     dailyMessages: 1500,
     dailyImages: 250,
     dailyVoiceSeconds: 14400,
@@ -90,7 +90,7 @@ export const ISABELLA_PLANS: IsabellaPlan[] = [
   {
     id: "enterprise",
     name: "Isabella Enterprise",
-    monthlyUsd: 99,
+    monthlyUsd: 112.5,
     dailyMessages: 10000,
     dailyImages: 1000,
     dailyVoiceSeconds: 86400,
@@ -204,18 +204,15 @@ export function buildCheckoutUrl(planId: IsabellaPlanId, userId: string): string
   const plan = planById(planId);
   const baseUrl = process.env.BILLING_CHECKOUT_BASE_URL || process.env.PUBLIC_APP_URL || "http://localhost:3000";
   const priceEnv = plan.stripePriceEnv ? process.env[plan.stripePriceEnv] : undefined;
-  if (process.env.NODE_ENV !== "production" && process.env.ENABLE_MOCK_CHECKOUT === "true") {
-    const url = new URL("/api/v1/billing/checkout/mock", baseUrl);
+  // Stripe real: se redirige al endpoint de provider, que crea una Checkout
+  // Session auténtica y devuelve su URL para completar el pago.
+  if (process.env.STRIPE_SECRET_KEY) {
+    const url = new URL("/api/v1/billing/checkout/provider", baseUrl);
     url.searchParams.set("plan", plan.id);
     url.searchParams.set("user", userId);
     if (priceEnv) url.searchParams.set("price", priceEnv);
     return url.toString();
   }
-  if (!priceEnv) {
-    return `${baseUrl.replace(/\/$/, "")}/billing/contact?plan=${encodeURIComponent(plan.id)}`;
-  }
-  const url = new URL(process.env.STRIPE_CHECKOUT_URL || "/api/v1/billing/checkout/provider", baseUrl);
-  url.searchParams.set("price", priceEnv);
-  url.searchParams.set("client_reference_id", userId);
-  return url.toString();
+  // Stripe no configurado: contacto comercial (sin checkout simulado).
+  return `${baseUrl.replace(/\/$/, "")}/billing/contact?plan=${encodeURIComponent(plan.id)}`;
 }

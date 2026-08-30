@@ -7653,8 +7653,8 @@ var ISABELLA_PLANS = [
   },
   {
     id: "plus",
-    name: "Isabella Plus Introducci\xF3n",
-    monthlyUsd: 10,
+    name: "Isabella Plus",
+    monthlyUsd: 15,
     dailyMessages: 250,
     dailyImages: 40,
     dailyVoiceSeconds: 1800,
@@ -7665,7 +7665,7 @@ var ISABELLA_PLANS = [
   {
     id: "premium",
     name: "Isabella Premium",
-    monthlyUsd: 15,
+    monthlyUsd: 22.49,
     dailyMessages: 600,
     dailyImages: 100,
     dailyVoiceSeconds: 5400,
@@ -7676,7 +7676,7 @@ var ISABELLA_PLANS = [
   {
     id: "vip",
     name: "Isabella VIP",
-    monthlyUsd: 25,
+    monthlyUsd: 37.49,
     dailyMessages: 1500,
     dailyImages: 250,
     dailyVoiceSeconds: 14400,
@@ -7687,7 +7687,7 @@ var ISABELLA_PLANS = [
   {
     id: "enterprise",
     name: "Isabella Enterprise",
-    monthlyUsd: 99,
+    monthlyUsd: 112.5,
     dailyMessages: 1e4,
     dailyImages: 1e3,
     dailyVoiceSeconds: 86400,
@@ -7784,30 +7784,48 @@ function buildCheckoutUrl(planId, userId) {
   const plan = planById(planId);
   const baseUrl = process.env.BILLING_CHECKOUT_BASE_URL || process.env.PUBLIC_APP_URL || "http://localhost:3000";
   const priceEnv = plan.stripePriceEnv ? process.env[plan.stripePriceEnv] : void 0;
-  if (process.env.NODE_ENV !== "production" && process.env.ENABLE_MOCK_CHECKOUT === "true") {
-    const url2 = new URL("/api/v1/billing/checkout/mock", baseUrl);
-    url2.searchParams.set("plan", plan.id);
-    url2.searchParams.set("user", userId);
-    if (priceEnv) url2.searchParams.set("price", priceEnv);
-    return url2.toString();
+  if (process.env.STRIPE_SECRET_KEY) {
+    const url = new URL("/api/v1/billing/checkout/provider", baseUrl);
+    url.searchParams.set("plan", plan.id);
+    url.searchParams.set("user", userId);
+    if (priceEnv) url.searchParams.set("price", priceEnv);
+    return url.toString();
   }
-  if (!priceEnv) {
-    return `${baseUrl.replace(/\/$/, "")}/billing/contact?plan=${encodeURIComponent(plan.id)}`;
-  }
-  const url = new URL(process.env.STRIPE_CHECKOUT_URL || "/api/v1/billing/checkout/provider", baseUrl);
-  url.searchParams.set("price", priceEnv);
-  url.searchParams.set("client_reference_id", userId);
-  return url.toString();
+  return `${baseUrl.replace(/\/$/, "")}/billing/contact?plan=${encodeURIComponent(plan.id)}`;
 }
 
 // src/middleware/rateLimit.ts
+init_node_require();
 var WINDOW_MS = 6e4;
 var DEFAULT_LIMIT = 120;
 var MEMORY_BUCKETS = /* @__PURE__ */ new Map();
 var UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
 var UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-var REDIS_ENABLED = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+var REDIS_URL = process.env.REDIS_URL;
+var REDIS_ENABLED = Boolean(REDIS_URL || UPSTASH_URL && UPSTASH_TOKEN);
 var REQUIRE_DISTRIBUTED_RATE_LIMIT = process.env.REQUIRE_DISTRIBUTED_RATE_LIMIT === "true";
+var directClient = null;
+var directClientError = null;
+function getDirectRedis() {
+  if (!REDIS_URL) return null;
+  if (directClient) return directClient;
+  if (directClientError) return null;
+  try {
+    const RedisCtor = nodeRequire("ioredis");
+    directClient = new RedisCtor(REDIS_URL, {
+      lazyConnect: true,
+      connectTimeout: 3e3,
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: true,
+      retryStrategy: () => null
+    });
+    Promise.resolve(directClient.connect?.()).catch(() => void 0);
+    return directClient;
+  } catch (err) {
+    directClientError = err;
+    return null;
+  }
+}
 setInterval(() => {
   const now3 = Date.now();
   for (const [key, bucket] of MEMORY_BUCKETS) {
@@ -7826,8 +7844,18 @@ function clientKey(req) {
   const subject = principal?.sub || String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "local").split(",")[0].trim();
   return `rl:${tenant}:${subject}`;
 }
-async function redisIncrement(key) {
-  if (!REDIS_ENABLED) return null;
+async function directRedisIncrement(key) {
+  const client = getDirectRedis();
+  if (!client) return null;
+  const count = await client.incr(key);
+  if (count === 1) {
+    await client.expire(key, Math.ceil(WINDOW_MS / 1e3));
+  }
+  const ttl = await client.ttl(key).catch(() => Math.ceil(WINDOW_MS / 1e3));
+  return { count, resetAt: Date.now() + Math.max(1, typeof ttl === "number" ? ttl : 60) * 1e3 };
+}
+async function upstashIncrement(key) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
   const encoded = encodeURIComponent(key);
   const auth = { Authorization: `Bearer ${UPSTASH_TOKEN}` };
   const incrResponse = await fetch(`${UPSTASH_URL}/incr/${encoded}`, { headers: auth });
@@ -7839,6 +7867,14 @@ async function redisIncrement(key) {
   const ttlResponse = await fetch(`${UPSTASH_URL}/ttl/${encoded}`, { headers: auth });
   const ttl = ttlResponse.ok ? (await ttlResponse.json()).result : Math.ceil(WINDOW_MS / 1e3);
   return { count: incr.result ?? 1, resetAt: Date.now() + Math.max(1, ttl ?? 60) * 1e3 };
+}
+async function redisIncrement(key) {
+  if (!REDIS_ENABLED) return null;
+  const direct = await directRedisIncrement(key);
+  if (direct) return direct;
+  const upstash = await upstashIncrement(key);
+  if (upstash) return upstash;
+  return null;
 }
 function memoryIncrement(key) {
   const now3 = Date.now();
@@ -8059,8 +8095,10 @@ function assertStrictEnv() {
   if (missing.length > 0) {
     throw new Error(`Production secrets must be provided via environment manager: ${missing.join(", ")}`);
   }
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    throw new Error("Production requires Upstash Redis REST credentials for distributed sessions and rate limiting.");
+  const hasDirectRedis = Boolean(process.env.REDIS_URL);
+  const hasUpstash = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  if (!hasDirectRedis && !hasUpstash) {
+    throw new Error("Production requires Redis credentials for distributed rate limiting (REDIS_URL or UPSTASH_REDIS_REST_URL/TOKEN).");
   }
   const origins = (process.env.CANONICAL_ORIGINS || "").split(",").filter(Boolean);
   if (origins.length === 0) throw new Error("Production requires CANONICAL_ORIGINS for strict CORS.");
@@ -8286,6 +8324,260 @@ function rowToRecord(row) {
     createdBy: row.createdBy,
     replacedBy: row.replacedBy
   };
+}
+
+// src/lib/billing/stripe.ts
+init_node_require();
+var STRIPE_CATALOG = {
+  plus: { label: "Isabella Plus", amountCents: 1500, envVar: "STRIPE_PRICE_PLUS" },
+  premium: { label: "Isabella Premium", amountCents: 2249, envVar: "STRIPE_PRICE_PREMIUM" },
+  vip: { label: "Isabella VIP", amountCents: 3749, envVar: "STRIPE_PRICE_VIP" },
+  enterprise: { label: "Isabella Enterprise", amountCents: 11250, envVar: "STRIPE_PRICE_ENTERPRISE" }
+};
+var PAID_PLANS = ["plus", "premium", "vip", "enterprise"];
+var stripeClient = null;
+var catalogReady = false;
+function getStripe() {
+  if (stripeClient) return stripeClient;
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) return null;
+  try {
+    const StripeModule = nodeRequire("stripe");
+    stripeClient = new StripeModule(secret, { apiVersion: "2024-06-20" });
+  } catch {
+    stripeClient = null;
+  }
+  return stripeClient;
+}
+function priceFromEnv(planId) {
+  const client = getStripe();
+  if (!client) return null;
+  const priceId = process.env[STRIPE_CATALOG[planId].envVar];
+  if (!priceId) return null;
+  return { id: priceId };
+}
+async function ensureStripeCatalog() {
+  const client = getStripe();
+  if (!client) return false;
+  if (catalogReady) return true;
+  for (const planId of PAID_PLANS) {
+    const spec = STRIPE_CATALOG[planId];
+    try {
+      const products2 = await client.products.list({
+        active: true,
+        limit: 100
+      });
+      let product = products2.data.find((p2) => p2.name === spec.label) ?? null;
+      if (!product) {
+        product = await client.products.create({ name: spec.label, active: true });
+      }
+      const prices = await client.prices.list({ product: product.id, active: true, limit: 100 });
+      let price = prices.data.find((p2) => p2.unit_amount === spec.amountCents && p2.recurring?.interval === "month") ?? null;
+      if (!price) {
+        price = await client.prices.create({
+          product: product.id,
+          unit_amount: spec.amountCents,
+          currency: "usd",
+          recurring: { interval: "month" }
+        });
+      }
+      process.env[spec.envVar] = price.id;
+    } catch (err) {
+      console.warn(`[stripe] catalog sync failed for ${planId}`, err);
+    }
+  }
+  catalogReady = true;
+  return true;
+}
+async function createStripeCheckoutSession(planId, clientReferenceId) {
+  const client = getStripe();
+  if (!client) return null;
+  if (planId === "free" || planId === "custom") return null;
+  if (!(planId in STRIPE_CATALOG)) return null;
+  await ensureStripeCatalog();
+  const price = priceFromEnv(planId);
+  if (!price) return null;
+  const base = process.env.BILLING_CHECKOUT_BASE_URL || process.env.VITE_PUBLIC_APP_URL || "http://localhost:3000";
+  try {
+    const session = await client.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: price.id, quantity: 1 }],
+      client_reference_id: clientReferenceId,
+      metadata: { planId, userId: clientReferenceId },
+      success_url: `${base}/billing/result?session_id={CHECKOUT_SESSION_ID}&status=success`,
+      cancel_url: `${base}/billing/result?status=cancelled`,
+      allow_promotion_codes: true,
+      billing_address_collection: "auto",
+      payment_method_collection: "if_required"
+    });
+    return session.url ? { url: session.url } : null;
+  } catch {
+    return null;
+  }
+}
+async function handleStripeWebhook(rawBody, signature) {
+  const client = getStripe();
+  if (!client) return { received: false, error: "stripe_not_configured" };
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) return { received: false, error: "STRIPE_WEBHOOK_SECRET not configured" };
+  let event;
+  try {
+    event = client.webhooks.constructEvent(rawBody, signature, webhookSecret);
+  } catch (err) {
+    return { received: false, error: `webhook_signature_invalid: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const planId = session.metadata?.planId ?? session.client_reference_id;
+    const userId = session.client_reference_id ?? session.metadata?.userId;
+    if (userId && planId && (planId === "plus" || planId === "premium" || planId === "vip" || planId === "enterprise")) {
+      setUserPlan(userId, planId);
+    }
+  }
+  return { received: true };
+}
+
+// src/lib/governance/risk.ts
+var RISK_TIER_ORDER = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+  PROHIBITED: 5
+};
+var LIKELIHOOD_WEIGHT = {
+  rare: 1,
+  possible: 2,
+  probable: 3,
+  "almost-certain": 4
+};
+var IMPACT_WEIGHT = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4
+};
+var SCORE_TO_LEVEL = [
+  { min: 13, level: "critical" },
+  { min: 9, level: "high" },
+  { min: 5, level: "medium" },
+  { min: 0, level: "low" }
+];
+function riskLevel(likelihood, impact) {
+  const score = LIKELIHOOD_WEIGHT[likelihood] * IMPACT_WEIGHT[impact];
+  return SCORE_TO_LEVEL.find((entry) => score >= entry.min).level;
+}
+function computeResidual(a) {
+  const inherent = a.inherentRisk;
+  const activeMitigations = a.mitigations.length;
+  const hasEvidence = a.evidenceRefs.length > 0;
+  if (!hasEvidence) {
+    return { residualRisk: inherent, rationale: "Sin evidencia t\xE9cnica, el riesgo residual no se reduce." };
+  }
+  const reduction = Math.min(activeMitigations, 2);
+  const order = ["low", "medium", "high", "critical"];
+  const inherentIdx = order.indexOf(inherent);
+  const residualIdx = Math.max(0, inherentIdx - reduction);
+  const residual = order[residualIdx];
+  return {
+    residualRisk: residual,
+    rationale: `${activeMitigations} mitigaci\xF3n(es) con evidencia aplicadas; residual ${residual}.`
+  };
+}
+function isRiskTier(value) {
+  return value in RISK_TIER_ORDER;
+}
+var RiskRegister = class {
+  constructor() {
+    this.risks = /* @__PURE__ */ new Map();
+  }
+  register(input) {
+    const inherent = riskLevel(input.likelihood, input.impact);
+    const assessment = {
+      ...input,
+      inherentRisk: inherent,
+      ...computeResidual({ ...input, inherentRisk: inherent })
+    };
+    this.risks.set(assessment.riskId, assessment);
+    return assessment;
+  }
+  get(riskId) {
+    return this.risks.get(riskId);
+  }
+  list() {
+    return [...this.risks.values()];
+  }
+  /** Riesgos que bloquean producción: HIGH/CRITICAL abiertos o cualquier PROHIBITED. */
+  blockingForProduction() {
+    return this.list().filter((r) => {
+      if (r.prohibited) return true;
+      if (r.status === "closed") return false;
+      return RISK_TIER_ORDER[r.riskTier] >= RISK_TIER_ORDER.HIGH;
+    });
+  }
+  fromCatalog(cat) {
+    if (isRiskTier(cat)) return RISK_TIER_ORDER[cat];
+    return 0;
+  }
+};
+var riskRegister = new RiskRegister();
+
+// src/lib/governance/seed-risk-register.ts
+var SEED = [
+  { riskId: "AI-RISK-0001", title: "Fuga de datos entre tenants", component: "memory-retrieval", owner: "security-owner", likelihood: "possible", impact: "critical", humanRights: ["privacy"], existingControls: ["tenant-isolation"], mitigations: ["backend-tenant-derivation"], prohibited: true },
+  { riskId: "AI-RISK-0002", title: "Alucinaci\xF3n presentada como hecho verificado", component: "inference", owner: "model-owner", likelihood: "probable", impact: "high", humanRights: ["information"], existingControls: ["epistemic"], mitigations: ["claim-radar"] },
+  { riskId: "AI-RISK-0003", title: "Sesgo en clasificaci\xF3n o recomendaci\xF3n", component: "classification", owner: "model-owner", likelihood: "possible", impact: "high", humanRights: ["non-discrimination"], existingControls: [], mitigations: ["bias-eval"] },
+  { riskId: "AI-RISK-0004", title: "Decisi\xF3n autom\xE1tica sin revisi\xF3n humana", component: "orchestration", owner: "privacy-owner", likelihood: "possible", impact: "high", humanRights: ["due-process"], existingControls: ["human-oversight"], mitigations: ["approval-gate"], prohibited: true },
+  { riskId: "AI-RISK-0005", title: "Prompt injection en herramientas", component: "tools", owner: "security-owner", likelihood: "probable", impact: "high", humanRights: ["security"], existingControls: ["prompt-injection-guard"], mitigations: ["input-sanitization"] },
+  { riskId: "AI-RISK-0006", title: "Ejecuci\xF3n de herramienta no autorizada", component: "tools-catalog", owner: "security-owner", likelihood: "possible", impact: "high", humanRights: ["security"], existingControls: ["scope"], mitigations: ["tool-allowlist"] },
+  { riskId: "AI-RISK-0007", title: "Compromiso de proveedor externo", component: "providers", owner: "platform-owner", likelihood: "rare", impact: "high", humanRights: ["privacy"], existingControls: ["inventory"], mitigations: ["third-party-governance"] },
+  { riskId: "AI-RISK-0008", title: "P\xE9rdida o corrupci\xF3n de memoria", component: "memory-store", owner: "data-steward", likelihood: "rare", impact: "medium", humanRights: ["privacy"], existingControls: ["postgres"], mitigations: ["backup-restore"] },
+  { riskId: "AI-RISK-0009", title: "Ledger presentado como inmutable sin verificaci\xF3n", component: "ledger", owner: "audit-owner", likelihood: "possible", impact: "critical", humanRights: ["integrity"], existingControls: ["checksum"], mitigations: ["verify"] },
+  { riskId: "AI-RISK-0010", title: "Exposici\xF3n de secretos en logs o frontend", component: "logging", owner: "security-owner", likelihood: "possible", impact: "critical", humanRights: ["privacy"], existingControls: ["secret-scan"], mitigations: ["redaction"], prohibited: true },
+  { riskId: "AI-RISK-0011", title: "Uso de datos sin base jur\xEDdica", component: "data", owner: "legal-counsel", likelihood: "possible", impact: "high", humanRights: ["privacy"], existingControls: [], mitigations: ["dpa"] },
+  { riskId: "AI-RISK-0012", title: "Abuso del kill switch", component: "kill-switch", owner: "security-owner", likelihood: "rare", impact: "critical", humanRights: ["security"], existingControls: ["approval"], mitigations: ["h3-approval"], prohibited: true },
+  { riskId: "AI-RISK-0013", title: "Prueba ZK falsa o no confirmada", component: "crypto", owner: "crypto-owner", likelihood: "rare", impact: "high", humanRights: ["integrity"], existingControls: [], mitigations: ["verify"] },
+  { riskId: "AI-RISK-0014", title: "Coste excesivo por quantum/tool jobs", component: "jobs", owner: "platform-owner", likelihood: "rare", impact: "medium", humanRights: [], existingControls: ["budget"], mitigations: ["quotas"] },
+  { riskId: "AI-RISK-0015", title: "Fallo de disponibilidad o dependencia externa", component: "infra", owner: "platform-owner", likelihood: "possible", impact: "medium", humanRights: [], existingControls: ["circuit-breaker"], mitigations: ["redundancy"] },
+  { riskId: "AI-RISK-0016", title: "Modelo fuera de distribuci\xF3n", component: "model", owner: "model-owner", likelihood: "rare", impact: "medium", humanRights: [], existingControls: [], mitigations: ["drift"] },
+  { riskId: "AI-RISK-0017", title: "Salida discriminatoria", component: "inference", owner: "model-owner", likelihood: "possible", impact: "high", humanRights: ["non-discrimination"], existingControls: [], mitigations: ["bias-eval"], prohibited: true },
+  { riskId: "AI-RISK-0018", title: "Fallo de supervisi\xF3n humana", component: "oversight", owner: "privacy-owner", likelihood: "possible", impact: "high", humanRights: ["due-process"], existingControls: ["human-oversight"], mitigations: ["approval-gate"] },
+  { riskId: "AI-RISK-0019", title: "Dependencia vulnerable o paquete malicioso", component: "deps", owner: "security-owner", likelihood: "possible", impact: "medium", humanRights: ["security"], existingControls: ["audit"], mitigations: ["dependency-pinning"] },
+  { riskId: "AI-RISK-0020", title: "Confusi\xF3n entre simulaci\xF3n y estado real", component: "ui", owner: "data-steward", likelihood: "probable", impact: "high", humanRights: ["transparency"], existingControls: ["labeling"], mitigations: ["provenance"] }
+];
+var seeded2 = false;
+function seedRiskRegister() {
+  if (seeded2) return;
+  for (const seed of SEED) {
+    riskRegister.register({
+      ...seed,
+      system: "Isabella",
+      riskTier: seed.prohibited ? "PROHIBITED" : "MEDIUM",
+      status: "open",
+      evidenceRefs: [],
+      acceptanceCriteria: []
+    });
+  }
+  seeded2 = true;
+}
+
+// src/lib/governance/provenance.ts
+var POLICY_VERSION = "2026.08.1";
+function buildProvenance(opts) {
+  return {
+    provenance: {
+      modelId: opts?.modelId ?? "isabella-sovereign",
+      modelVersion: opts?.modelVersion ?? process.env.npm_package_version ?? "5.3.0",
+      systemVersion: opts?.systemVersion ?? process.env.npm_package_version ?? "5.3.0",
+      policyVersion: opts?.policyVersion ?? POLICY_VERSION,
+      dataOrigin: opts?.dataOrigin ?? (process.env.NODE_ENV === "production" ? "live" : "local"),
+      humanReview: opts?.humanReview ?? "not_required"
+    }
+  };
+}
+function requireHumanReview(highRisk) {
+  if (!highRisk) return "not_required";
+  return "pending";
 }
 
 // src/lib/api-contracts.ts
@@ -11717,7 +12009,7 @@ var ROLE_LIMITS = {
   operator: { wires: 24, shots: 1e5, maxTimeoutMs: 6e4 },
   service: { wires: 24, shots: 1e5, maxTimeoutMs: 6e4 }
 };
-var POLICY_VERSION = "quantum-policy-v1";
+var POLICY_VERSION2 = "quantum-policy-v1";
 var policyAuditLog = [];
 function deny(reason) {
   return {
@@ -11816,7 +12108,7 @@ function getPolicyMetrics() {
   const denials = recent.filter((e) => e.decision.decision === "deny").length;
   const degraded = recent.filter((e) => e.decision.decision === "degraded").length;
   return {
-    version: POLICY_VERSION,
+    version: POLICY_VERSION2,
     totalDecisions: policyAuditLog.length,
     recentAllows: allows,
     recentDenials: denials,
@@ -13902,7 +14194,7 @@ var TOOL_AUTHORIZATION = {
   argus_security_audit: { minRisk: "low" },
   sovereign_ledger_commit: { minRisk: "medium", requiresConsent: true }
 };
-function authorizeToolCall(toolName, riskLevel) {
+function authorizeToolCall(toolName, riskLevel2) {
   const policy = TOOL_AUTHORIZATION[toolName];
   if (!policy) return { allowed: false, reason: `Tool '${toolName}' is not registered in the authorization policy.` };
   const tool = REGISTERED_TOOLS.find((t) => t.name === toolName);
@@ -13910,8 +14202,8 @@ function authorizeToolCall(toolName, riskLevel) {
   if (!tool.allowed) return { allowed: false, reason: `Tool '${toolName}' is disabled by policy.` };
   const riskOrder = ["low", "medium", "high"];
   const minIdx = riskOrder.indexOf(policy.minRisk || "low");
-  const actIdx = riskOrder.indexOf(riskLevel);
-  if (actIdx > minIdx) return { allowed: false, reason: `Risk '${riskLevel}' exceeds tool maximum '${policy.minRisk}'.` };
+  const actIdx = riskOrder.indexOf(riskLevel2);
+  if (actIdx > minIdx) return { allowed: false, reason: `Risk '${riskLevel2}' exceeds tool maximum '${policy.minRisk}'.` };
   return { allowed: true };
 }
 async function resolveToolCall(tc, userId, tenantId) {
@@ -14829,7 +15121,16 @@ if (process.env.ISABELLA_AUTHZ_EXPORT_NATIVE_KEY === "true") {
     log5.error("authz_key_export_failed", { error: toErrorMessage(err) });
   }
 }
-app.use(import_express4.default.json({ limit: "10mb" }));
+app.use(
+  import_express4.default.json({
+    limit: "10mb",
+    // Conserva el buffer crudo (requerido para verificar firmas de webhook de
+    // Stripe) sin romper el parsing JSON de las demás rutas.
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    }
+  })
+);
 app.disable("x-powered-by");
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -15094,14 +15395,70 @@ app.post("/api/v1/billing/checkout", rateLimit, authenticate, requireScope("bill
   }
   res.json({ ok: true, checkoutUrl: buildCheckoutUrl(requestedPlan, userId), planId: requestedPlan });
 });
-app.get("/api/v1/billing/checkout/mock", authenticate, requireRole("admin"), (req, res) => {
-  if (process.env.NODE_ENV === "production" || process.env.ENABLE_MOCK_CHECKOUT !== "true") {
-    return res.status(404).json({ ok: false, error: "Mock checkout is disabled outside explicit development mode." });
-  }
+app.get("/api/v1/billing/checkout/provider", authenticate, async (req, res) => {
   const plan = String(req.query.plan || "plus");
   const { userId } = getBillingIdentity(req);
-  const applied = setUserPlan(userId, plan);
-  res.json({ ok: true, mode: "mock-checkout-dev-only", user: userId, plan: applied });
+  if (plan === "free" || plan === "custom") {
+    return res.status(400).json({ ok: false, error: "Selecciona plus, premium, vip o enterprise para checkout." });
+  }
+  await ensureStripeCatalog();
+  const session = await createStripeCheckoutSession(plan, userId);
+  if (!session?.url) {
+    return res.status(503).json({ ok: false, error: { code: "STRIPE_UNAVAILABLE", message: "No se pudo iniciar el checkout con Stripe. Verifica STRIPE_SECRET_KEY." } });
+  }
+  return res.redirect(303, session.url);
+});
+app.post(
+  "/api/v1/billing/webhooks/stripe",
+  import_express4.default.raw({ type: "*/*" }),
+  async (req, res) => {
+    const signature = String(req.headers["stripe-signature"] || "");
+    const raw = req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
+    const result = await handleStripeWebhook(raw, signature);
+    if (!result.received) {
+      return res.status(400).json({ ok: false, error: result.error });
+    }
+    return res.json({ received: true });
+  }
+);
+seedRiskRegister();
+app.get("/api/v1/governance/risk-register", authenticate, (req, res) => {
+  const risks = riskRegister.list().map((r) => ({
+    riskId: r.riskId,
+    title: r.title,
+    component: r.component,
+    owner: r.owner,
+    riskTier: r.riskTier,
+    inherentRisk: r.inherentRisk,
+    residualRisk: r.residualRisk,
+    status: r.status,
+    prohibited: r.prohibited,
+    humanRights: r.humanRights,
+    evidenceRefs: r.evidenceRefs
+  }));
+  res.json({ ok: true, framework: "UNESCO / ONU / WEF (referencias de dise\xF1o)", risks });
+});
+app.get("/api/v1/governance/readiness", authenticate, requireRole("admin"), (req, res) => {
+  const blocking = riskRegister.blockingForProduction();
+  res.json({
+    ok: true,
+    productionReady: blocking.length === 0,
+    blocking,
+    requiredArtefacts: {
+      modelCards: true,
+      systemCards: true,
+      dataSheets: true,
+      aiTransparencyNotice: true,
+      humanOversightPolicy: true
+    }
+  });
+});
+app.get("/api/v1/governance/provenance", authenticate, (req, res) => {
+  res.json({
+    ok: true,
+    ...buildProvenance({ dataOrigin: process.env.NODE_ENV === "production" ? "live" : "local" }),
+    humanReviewForHighRisk: requireHumanReview(true)
+  });
 });
 app.get("/api/v1/flags", (req, res) => {
   const flags = featureFlagService.snapshot({
@@ -16502,6 +16859,14 @@ async function startServer() {
       log5.info("postgres_status", { healthy, host: process.env.POSTGRES_HOST || "unknown" });
     } catch (err) {
       log5.warn("postgres_init_failed", { error: toErrorMessage(err) });
+    }
+  }
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      const ok = await ensureStripeCatalog();
+      log5.info("stripe_catalog_sync", { ok });
+    } catch (err) {
+      log5.warn("stripe_catalog_sync_failed", { error: toErrorMessage(err) });
     }
   }
   startMonitoring();
