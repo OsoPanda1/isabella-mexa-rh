@@ -1126,5 +1126,233 @@
     "attempts": 1,
     "status": "published",
     "published_at": "2026-08-30T05:02:00.799Z"
+  },
+  {
+    "event_id": "evt_mtfl1yxd_6d29dd9743d6",
+    "envelope": {
+      "event_id": "evt_mtfl1yxd_6d29dd9743d6",
+      "event_type": "documents.created",
+      "timestamp": "2026-08-30T09:04:14.354Z",
+      "actor_id": "kernel.bootstrap",
+      "federation_id": "TAMV-NODO-0",
+      "hash_before": null,
+      "hash_after": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+      "payload": {
+        "document_uid": "ATLAS-DOC-TAMV-NODO-0-CANON-MTFL1YXD952B0B9B6D-d2ff1611",
+        "federation_id": "TAMV-NODO-0",
+        "namespace": "CANON",
+        "title": "ISABELLA VILLASEÑOR AI - Documento Canónico",
+        "created_by": "kernel.bootstrap",
+        "version": 1,
+        "canonical_hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73"
+      },
+      "signature": "hmac-sha256:36638c0f2e12cda8f58049ed98c8fa593ee944fa588eaf4f9f800d2fc3190fa5"
+    },
+    "inserted_at": "2026-08-30T09:04:14.354Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.370Z"
+  },
+  {
+    "event_id": "evt_mtfl1yy0_d5ec301e1e65",
+    "envelope": {
+      "event_id": "evt_mtfl1yy0_d5ec301e1e65",
+      "event_type": "federations.anchored",
+      "timestamp": "2026-08-30T09:04:14.376Z",
+      "hash_before": null,
+      "hash_after": null,
+      "payload": {
+        "anchor_id": "ANCH-MTFL1YY0-IXHF",
+        "document_uid": "ATLAS-DOC-TAMV-NODO-0-CANON-MTFL1YXD952B0B9B6D-d2ff1611",
+        "merkle_root": "6747f5031ce424a323b406ea53408f9a0fe4145aa5f087a28e3ce1e3197b2e87",
+        "federations": [
+          {
+            "federation_id": "F1",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:28bcf3de72423a8ab4d9ab39a2b718d1",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F2",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:2540b77a0b92ced22c8c79a61c9a5fa7",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F3",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:0e82dd9a77c6d348469795e5880a6a23",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F4",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:572ae2a7ed3f8a178cc198d558ce04f6",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F5",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:62dd97cbf29d1b24aec7985a20af888b",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F6",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:25bb2dbae8fe8887e099ef2ad13c96fc",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          },
+          {
+            "federation_id": "F7",
+            "hash": "d2ff16118c2d3ac1cc4e3925c15184be0b1062c323d688826e2b6890a9df5f73",
+            "signature": "ed25519-sim:818da7a4d1dcb64697686154e5ee211d",
+            "timestamp": "2026-08-30T09:04:14.375Z"
+          }
+        ],
+        "quorum": {
+          "achieved": 7,
+          "required": 4
+        }
+      },
+      "signature": "hmac-sha256:9c17bd55de271982b4234c8df090f483b2469e4bce2aab93989832d51816b9d2"
+    },
+    "inserted_at": "2026-08-30T09:04:14.376Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.386Z"
+  },
+  {
+    "event_id": "evt_mtfl1yyd_888497032845",
+    "envelope": {
+      "event_id": "evt_mtfl1yyd_888497032845",
+      "event_type": "federations.consistency_checked",
+      "timestamp": "2026-08-30T09:04:14.389Z",
+      "hash_before": null,
+      "hash_after": null,
+      "payload": {
+        "anchor_id": "ANCH-MTFL1YY0-IXHF",
+        "status": "consistent",
+        "mismatches": []
+      },
+      "signature": "hmac-sha256:5d702b98cea8ad428c8f613ba7f23cbe836973c58091c56c19df593d9500eb68"
+    },
+    "inserted_at": "2026-08-30T09:04:14.389Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.397Z"
+  },
+  {
+    "event_id": "evt_mtfl1yyp_1c1d2fec9c0f",
+    "envelope": {
+      "event_id": "evt_mtfl1yyp_1c1d2fec9c0f",
+      "event_type": "documents.created",
+      "timestamp": "2026-08-30T09:04:14.401Z",
+      "actor_id": "kernel.bootstrap",
+      "federation_id": "TAMV-NODO-0",
+      "hash_before": null,
+      "hash_after": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+      "payload": {
+        "document_uid": "ATLAS-DOC-TAMV-NODO-0-RFC-MTFL1YYO8DED2FEBDB-9aee5a73",
+        "federation_id": "TAMV-NODO-0",
+        "namespace": "RFC",
+        "title": "Perfil Criptográfico CRYSTALS-LATAMV (AnVi)",
+        "created_by": "kernel.bootstrap",
+        "version": 1,
+        "canonical_hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102"
+      },
+      "signature": "hmac-sha256:046baaa21d340b5ec086c797022479fd19590c2d7340f5c9e10007e3dd39eead"
+    },
+    "inserted_at": "2026-08-30T09:04:14.401Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.406Z"
+  },
+  {
+    "event_id": "evt_mtfl1yyy_d6ac95a33d3d",
+    "envelope": {
+      "event_id": "evt_mtfl1yyy_d6ac95a33d3d",
+      "event_type": "federations.anchored",
+      "timestamp": "2026-08-30T09:04:14.410Z",
+      "hash_before": null,
+      "hash_after": null,
+      "payload": {
+        "anchor_id": "ANCH-MTFL1YYY-2QJW",
+        "document_uid": "ATLAS-DOC-TAMV-NODO-0-RFC-MTFL1YYO8DED2FEBDB-9aee5a73",
+        "merkle_root": "789a4a2518177be508dd6ad1543a90f7f4c69c1dbf61a38c1b33329e5b1ba815",
+        "federations": [
+          {
+            "federation_id": "F1",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:9e9b5280ad186135aa44657c20b3cf42",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F2",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:87b7a16a55d26e932397209ab24af9c2",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F3",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:f31d61bb26f1bcce10d5a09ec9d62ff0",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F4",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:60613c997998f20fc0bc5542d88fad21",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F5",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:c219695aef469d8a1a38b28195162b15",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F6",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:256cdc4676d6fa3bbd0debf4d1434c99",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          },
+          {
+            "federation_id": "F7",
+            "hash": "9aee5a73687be76bf8f7f07f73664d90af9ca6279c77059e7471cd50d9b1f102",
+            "signature": "ed25519-sim:5d66801e47c056dd923c5df614bf1789",
+            "timestamp": "2026-08-30T09:04:14.410Z"
+          }
+        ],
+        "quorum": {
+          "achieved": 7,
+          "required": 4
+        }
+      },
+      "signature": "hmac-sha256:7878eeb931256cc5233312dca60f205829f5cbe30849685b634d013144fc52d8"
+    },
+    "inserted_at": "2026-08-30T09:04:14.410Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.416Z"
+  },
+  {
+    "event_id": "evt_mtfl1yz7_a8fbc3e46338",
+    "envelope": {
+      "event_id": "evt_mtfl1yz7_a8fbc3e46338",
+      "event_type": "federations.consistency_checked",
+      "timestamp": "2026-08-30T09:04:14.419Z",
+      "hash_before": null,
+      "hash_after": null,
+      "payload": {
+        "anchor_id": "ANCH-MTFL1YYY-2QJW",
+        "status": "consistent",
+        "mismatches": []
+      },
+      "signature": "hmac-sha256:62986ede32a6567d5f535f0a88e905c85a739e2b4aaeb3ee25f821c8f78990dd"
+    },
+    "inserted_at": "2026-08-30T09:04:14.419Z",
+    "attempts": 1,
+    "status": "published",
+    "published_at": "2026-08-30T09:04:14.424Z"
   }
 ]

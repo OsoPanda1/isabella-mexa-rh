@@ -87,8 +87,9 @@ describe("tenant isolation helpers · W1 (tiempo-constante)", () => {
 });
 
 describe("principal context · W1", () => {
-  it("infiere kind api-key desde apiKeyId y congela roles/scopes", () => {
-    const ctx = createPrincipalContext(makePrincipal({ apiKeyId: "key-1" }));
+  it("infiere kind api-key desde apiKeyId cuando kind no está explícito y congela roles/scopes", () => {
+    const { kind: _omit, ...principalSinKind } = makePrincipal({ apiKeyId: "key-1" });
+    const ctx = createPrincipalContext(principalSinKind);
     expect(ctx.kind).toBe("api-key");
     expect(Object.isFrozen(ctx.roles)).toBe(true);
     expect(Object.isFrozen(ctx.scopes)).toBe(true);

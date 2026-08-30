@@ -8086,7 +8086,15 @@ function pdpAuthorize(scope) {
 }
 
 // src/lib/env.ts
-var SECRET_KEYS = ["ISABELLA_AUTH_SECRET", "API_KEY_PEPPER", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_JWT_SECRET"];
+var SECRET_KEYS = [
+  "ISABELLA_AUTH_SECRET",
+  "API_KEY_PEPPER",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_JWT_SECRET",
+  "SUPABASE_SECRET_KEY",
+  "STRIPE_SECRET_KEY",
+  "BRAINTRUST_API_KEY"
+];
 var PLACEHOLDER = /^(|changeme|change-me|your_.+|YOUR_.+|example|dev-secret|secret|password)$/i;
 function assertStrictEnv() {
   const isProduction = process.env.VERCEL_ENV === "production" || process.env.ISABELLA_STRICT_ENV === "true";

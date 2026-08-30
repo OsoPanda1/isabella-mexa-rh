@@ -1,0 +1,13 @@
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+{"level":"info","event":"api_key_service_initialized","timestamp":"2026-08-30T09:04:11.985Z","scope":"server","engine":"sqlite"}
+[Boot] Canonical documents IVAI-CANON-001 and TAMV-RFC-0007 successfully anchored to Document Registry.
+{"level":"info","event":"automation_monitor_start","timestamp":"2026-08-30T09:04:14.431Z","scope":"automation-mesh","interval_ms":30000}
+{"level":"info","event":"adapter_registered","timestamp":"2026-08-30T09:04:14.435Z","scope":"mcp-hub","id":"zenodo","version":"2.0.0"}
+{"level":"info","event":"default_adapters_initialized","timestamp":"2026-08-30T09:04:14.436Z","scope":"mcp-hub","adapters":["zenodo@2.0.0"]}
+{"level":"info","event":"server_started","timestamp":"2026-08-30T09:04:14.448Z","scope":"server","port":3000,"env":"development"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:18.288Z","scope":"server","sub":"guest-smoke-1788080658149"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:21.226Z","scope":"server","sub":"guest-smoke-1788080658320"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:21.367Z","scope":"server","sub":"guest-smoke-1788080661362"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:21.387Z","scope":"server","sub":"guest-smoke-1788080661371"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:21.404Z","scope":"server","sub":"guest-smoke-1788080661396"}
+{"level":"info","event":"guest_session_minted","timestamp":"2026-08-30T09:04:21.432Z","scope":"server","sub":"guest-smoke-1788080661420"}

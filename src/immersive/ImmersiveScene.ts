@@ -278,7 +278,7 @@ export class ImmersiveScene {
       this.onVisibilityChange,
     );
 
-    if ("ResizeObserver" in window) {
+    if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(
         () => this.resize(),
       );
