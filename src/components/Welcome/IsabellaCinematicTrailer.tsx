@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronRight, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { ChevronRight, Volume2, VolumeX, Sparkles, Compass, ShieldCheck } from "lucide-react";
 import { useCrown } from "../../context/CrownContext";
 import { soundManager } from "../../utils/soundEffects";
 import { getAudioContextConstructor } from "../../utils/audioContext";
@@ -12,7 +12,7 @@ interface IsabellaCinematicTrailerProps {
 }
 
 /*
- * ISABELLA — GÉNESIS SOBERANA & MOTOR CELESTIAL 2D/3D
+ * ISABELLA — GÉNESIS SOBERANA & MOTOR CELESTIAL 2D/3D (EDICIÓN MAESTRA VISUAL)
  * Intro cinematográfica con starfield 3D hiperdimensional, constelaciones 2D,
  * astrolabio sagrado de Nodo Cero, audio generativo y letterbox de cine.
  */
@@ -130,14 +130,14 @@ const drawCelestialEngine = (
     centerY,
     Math.max(width, height),
   );
-  skyGradient.addColorStop(0, "#080d1a");
+  skyGradient.addColorStop(0, "#0a0f1d");
   skyGradient.addColorStop(0.35, "#04060c");
   skyGradient.addColorStop(0.75, "#020306");
   skyGradient.addColorStop(1, "#010102");
   ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Cosmic Nebula Cloud Aurora
+  // 2. Cosmic Nebula Cloud Aurora con resplandor dorado multicapa
   const sceneBoost =
     scene === "awakening" ? 1.6 : scene === "identity" ? 2.0 : scene === "arrival" ? 1.8 : 1.0;
 
@@ -147,11 +147,12 @@ const drawCelestialEngine = (
     10,
     centerX,
     centerY,
-    Math.min(width, height) * 0.58,
+    Math.min(width, height) * 0.62,
   );
-  nebulaAura.addColorStop(0, `rgba(224, 187, 93, ${0.08 * sceneBoost})`);
-  nebulaAura.addColorStop(0.45, `rgba(56, 189, 248, ${0.05 * sceneBoost})`);
-  nebulaAura.addColorStop(0.75, `rgba(99, 102, 241, ${0.03 * sceneBoost})`);
+  nebulaAura.addColorStop(0, `rgba(224, 187, 93, ${0.12 * sceneBoost})`);
+  nebulaAura.addColorStop(0.3, `rgba(217, 119, 6, ${0.05 * sceneBoost})`);
+  nebulaAura.addColorStop(0.6, `rgba(56, 189, 248, ${0.05 * sceneBoost})`);
+  nebulaAura.addColorStop(0.85, `rgba(99, 102, 241, ${0.03 * sceneBoost})`);
   nebulaAura.addColorStop(1, "rgba(0, 0, 0, 0)");
   ctx.fillStyle = nebulaAura;
   ctx.fillRect(0, 0, width, height);
@@ -170,11 +171,11 @@ const drawCelestialEngine = (
     ctx.fillStyle = s2.color.replace(", 1)", `, ${alpha})`);
     ctx.fill();
 
-    // Occasional subtle star bloom
+    // Subtle star bloom
     if (twinkle > 0.75) {
       ctx.beginPath();
-      ctx.arc(sx, sy, r * 2.8, 0, Math.PI * 2);
-      ctx.fillStyle = s2.color.replace(", 1)", `, ${alpha * 0.25})`);
+      ctx.arc(sx, sy, r * 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = s2.color.replace(", 1)", `, ${alpha * 0.3})`);
       ctx.fill();
     }
   }
@@ -205,7 +206,6 @@ const drawCelestialEngine = (
       star.y = (Math.random() - 0.5) * 2000;
     }
 
-    // 3D perspective projection
     const px = (star.x / star.z) * fov + centerX;
     const py = (star.y / star.z) * fov + centerY;
     const ppx = (star.x / star.pz) * fov + centerX;
@@ -215,13 +215,11 @@ const drawCelestialEngine = (
       continue;
     }
 
-    // Depth opacity (fade in distance, brightest near camera)
     const depthFactor = 1 - star.z / 1000;
     const twinkle = 0.8 + 0.2 * Math.sin(time * star.twinkleSpeed + star.twinklePhase);
     const alpha = Math.max(0.1, Math.min(1.0, depthFactor * twinkle));
-    const renderSize = Math.max(0.5, (star.size * (1 - star.z / 1100) * 2.2));
+    const renderSize = Math.max(0.5, star.size * (1 - star.z / 1100) * 2.2);
 
-    // Warp streaks when speed is high
     if (baseSpeed > 2.5) {
       ctx.beginPath();
       ctx.moveTo(ppx, ppy);
@@ -237,11 +235,10 @@ const drawCelestialEngine = (
     ctx.fillStyle = star.color.replace(", 1)", `, ${alpha})`);
     ctx.fill();
 
-    // Glow aura for foreground 3D stars
     if (depthFactor > 0.6) {
       ctx.beginPath();
-      ctx.arc(px, py, renderSize * 3, 0, Math.PI * 2);
-      ctx.fillStyle = star.color.replace(", 1)", `, ${alpha * 0.2})`);
+      ctx.arc(px, py, renderSize * 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = star.color.replace(", 1)", `, ${alpha * 0.22})`);
       ctx.fill();
     }
 
@@ -251,14 +248,14 @@ const drawCelestialEngine = (
   }
 
   // 5. Luminescent Constellation Lines
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 0.6;
   for (let i = 0; i < visiblePoints.length; i++) {
     for (let j = i + 1; j < visiblePoints.length; j++) {
       const p1 = visiblePoints[i];
       const p2 = visiblePoints[j];
       const dist = Math.hypot(p1.px - p2.px, p1.py - p2.py);
       if (dist < 110) {
-        const lineAlpha = (1 - dist / 110) * 0.12 * Math.min(p1.alpha, p2.alpha);
+        const lineAlpha = (1 - dist / 110) * 0.16 * Math.min(p1.alpha, p2.alpha);
         ctx.beginPath();
         ctx.moveTo(p1.px, p1.py);
         ctx.lineTo(p2.px, p2.py);
@@ -304,40 +301,40 @@ const drawCelestialEngine = (
     ctx.moveTo(tailX, tailY);
     ctx.lineTo(star.x, star.y);
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.8;
     ctx.lineCap = "round";
     ctx.stroke();
   });
 
-  // 7. Nodo Cero Sacred Astrolabe Orbit Rings
+  // 7. Nodo Cero Sacred Astrolabe Orbit Rings (Glow Mejorado)
   ctx.save();
   ctx.translate(centerX, centerY);
 
-  // Outer orbital ring with dashed degree ticks
+  // Anillo orbital exterior brillante
   ctx.save();
   ctx.rotate(time * 0.00003 * sceneBoost);
-  ctx.strokeStyle = "rgba(224, 187, 93, 0.22)";
-  ctx.lineWidth = 0.8;
-  ctx.setLineDash([2, 12]);
+  ctx.strokeStyle = "rgba(224, 187, 93, 0.28)";
+  ctx.lineWidth = 0.9;
+  ctx.setLineDash([3, 12]);
   ctx.beginPath();
   ctx.arc(0, 0, Math.min(width, height) * 0.26, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 
-  // Middle counter-rotating orbital ring
+  // Anillo intermedio azul cian en contra-rotación
   ctx.save();
   ctx.rotate(-time * 0.00002 * sceneBoost);
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.16)";
-  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.22)";
+  ctx.lineWidth = 0.8;
   ctx.setLineDash([1, 18]);
   ctx.beginPath();
   ctx.arc(0, 0, Math.min(width, height) * 0.34, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 
-  // Cardinal alignment indicators
-  ctx.strokeStyle = "rgba(224, 187, 93, 0.18)";
-  ctx.lineWidth = 0.5;
+  // Indicadores cardinales sagrados
+  ctx.strokeStyle = "rgba(224, 187, 93, 0.24)";
+  ctx.lineWidth = 0.6;
   ctx.setLineDash([4, 6]);
   ctx.beginPath();
   ctx.moveTo(0, -Math.min(width, height) * 0.38);
@@ -350,7 +347,7 @@ const drawCelestialEngine = (
 
   // 8. Territorial Mountain Horizon Waves (Real del Monte 2,700 msnm)
   ctx.save();
-  ctx.lineWidth = 0.7;
+  ctx.lineWidth = 0.8;
   for (let index = 0; index < 3; index += 1) {
     const y = height * 0.73 + index * 30;
     ctx.beginPath();
@@ -361,7 +358,7 @@ const drawCelestialEngine = (
       if (x === 0) ctx.moveTo(x, y + wave);
       else ctx.lineTo(x, y + wave);
     }
-    ctx.strokeStyle = `rgba(224, 187, 93, ${0.065 - index * 0.015})`;
+    ctx.strokeStyle = `rgba(224, 187, 93, ${0.08 - index * 0.018})`;
     ctx.stroke();
   }
   ctx.restore();
@@ -628,86 +625,93 @@ export const IsabellaCinematicTrailer: React.FC<IsabellaCinematicTrailerProps> =
 
   return (
     <div
-      className="fixed inset-0 z-[100] overflow-hidden bg-[#040507] font-sans text-[#fffefa]"
+      className="fixed inset-0 z-[100] overflow-hidden bg-[#040507] font-sans text-[#fffefa] select-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="isabella-trailer-title"
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
 
-      {/* Grano de película */}
+      {/* Grano de película hiperrealista */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
         style={{ backgroundImage: GRAIN_TEXTURE, backgroundSize: "220px 220px" }}
       />
 
-      {/* Viñeta */}
+      {/* Viñeta dramática de cine */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_52%,rgba(2,3,4,0.72)_100%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(2,3,5,0.85)_100%)]"
       />
 
-      {/* Letterbox cinematográfico */}
+      {/* Letterbox cinematográfico estilizado con destello áureo superior */}
       <div
         aria-hidden="true"
-        className={`absolute left-0 right-0 top-0 z-30 bg-black transition-all duration-[1600ms] ease-out ${
+        className={`absolute left-0 right-0 top-0 z-30 bg-black border-b border-[#e0bb5d]/20 transition-all duration-[1600ms] ease-out ${
           elapsedMs >= 200 ? "h-[7vh]" : "h-0"
         }`}
       />
       <div
         aria-hidden="true"
-        className={`absolute bottom-0 left-0 right-0 z-30 bg-black transition-all duration-[1600ms] ease-out ${
+        className={`absolute bottom-0 left-0 right-0 z-30 bg-black border-t border-[#e0bb5d]/20 transition-all duration-[1600ms] ease-out ${
           elapsedMs >= 200 ? "h-[7vh]" : "h-0"
         }`}
       />
 
-      {/* Controles */}
+      {/* Controles de cabecera en cristal ultra-pulido */}
       <header className="absolute left-0 right-0 top-[7vh] z-40 flex items-center justify-between px-6 py-4 sm:px-10">
-        <div className="flex items-center gap-3">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#e0bb5d] shadow-[0_0_8px_rgba(224,187,93,0.8)]" aria-hidden="true" />
-          <span className="text-[10px] font-medium uppercase tracking-[0.34em] text-[#bfb8ac] flex items-center gap-1.5">
-            Génesis Soberana <Sparkles className="w-3 h-3 text-[#e0bb5d]" />
+        <div className="flex items-center gap-3 backdrop-blur-md bg-black/40 px-4 py-1.5 rounded-full border border-white/10 shadow-[0_0_15px_rgba(224,187,93,0.15)]">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#e0bb5d] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#e0bb5d]"></span>
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.38em] text-[#e0bb5d] flex items-center gap-2 drop-shadow-[0_0_8px_rgba(224,187,93,0.5)]">
+            Génesis Soberana <Sparkles className="w-3 h-3 text-[#e0bb5d] animate-pulse" />
           </span>
         </div>
+        
         <button
           type="button"
           onClick={toggleAudio}
-          className="rounded-lg p-2 text-[#929da8] transition hover:bg-white/[0.05] hover:text-[#fffefa] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#e0bb5d] cursor-pointer"
+          className="group rounded-full p-2.5 text-[#929da8] backdrop-blur-md bg-black/40 border border-white/10 shadow-lg transition-all duration-300 hover:bg-white/10 hover:text-[#fffefa] hover:border-[#e0bb5d]/50 hover:shadow-[0_0_20px_rgba(224,187,93,0.3)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#e0bb5d] cursor-pointer"
           aria-label={audioMuted ? "Activar ambiente sonoro" : "Silenciar ambiente sonoro"}
           aria-pressed={!audioMuted}
         >
           {audioMuted ? (
-            <VolumeX className="h-4 w-4" aria-hidden="true" />
+            <VolumeX className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden="true" />
           ) : (
-            <Volume2 className="h-4 w-4" aria-hidden="true" />
+            <Volume2 className="h-4 w-4 text-[#e0bb5d] transition-transform group-hover:scale-110" aria-hidden="true" />
           )}
         </button>
       </header>
 
-      {/* Escena 1 — Señal */}
+      {/* Escena 1 — Señal (Geolocalización Sagrada) */}
       <div
         aria-hidden={scene !== "signal"}
         className={`absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-[1200ms] ${
-          scene === "signal" ? "opacity-100" : "opacity-0"
+          scene === "signal" ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="text-center">
+        <div className="text-center px-4">
           <div
-            className={`mx-auto h-px bg-gradient-to-r from-transparent via-[#e0bb5d]/80 to-transparent transition-all duration-[2000ms] ease-out ${
+            className={`mx-auto h-[1px] bg-gradient-to-r from-transparent via-[#e0bb5d] to-transparent transition-all duration-[2000ms] ease-out shadow-[0_0_12px_rgba(224,187,93,0.8)] ${
               signalLineVisible ? "w-64 opacity-100 sm:w-96" : "w-0 opacity-0"
             }`}
           />
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Compass className="w-3.5 h-3.5 text-[#e0bb5d]/90 animate-spin-slow" />
+            <p
+              className={`text-[11px] font-semibold uppercase tracking-[0.55em] text-[#d9d3c8] transition-all delay-500 duration-[1400ms] drop-shadow-md ${
+                signalLineVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+              }`}
+            >
+              Real del Monte · Nodo Cero
+            </p>
+          </div>
           <p
-            className={`mt-6 text-[10px] font-medium uppercase tracking-[0.5em] text-[#929da8] transition-all delay-500 duration-[1400ms] ${
-              signalLineVisible ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            Real del Monte · Nodo Cero
-          </p>
-          <p
-            className={`mt-3 font-mono text-[10px] tracking-[0.2em] text-[#e0bb5d]/80 transition-all delay-1000 duration-[1400ms] ${
-              signalLineVisible ? "opacity-100" : "opacity-0"
+            className={`mt-3 font-mono text-[11px] tracking-[0.25em] text-[#e0bb5d] transition-all delay-1000 duration-[1400ms] drop-shadow-[0_0_8px_rgba(224,187,93,0.4)] ${
+              signalLineVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
             }`}
           >
             20.1406° N · 98.6719° W · 2 700 msnm
@@ -715,11 +719,11 @@ export const IsabellaCinematicTrailer: React.FC<IsabellaCinematicTrailerProps> =
         </div>
       </div>
 
-      {/* Escena 2 — Despertar */}
+      {/* Escena 2 — Despertar (Medallón Holográfico Avanzado) */}
       <div
         aria-hidden={scene !== "awakening"}
         className={`absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-[1400ms] ${
-          scene === "awakening" ? "opacity-100" : "opacity-0"
+          scene === "awakening" ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         <div
@@ -727,27 +731,34 @@ export const IsabellaCinematicTrailer: React.FC<IsabellaCinematicTrailerProps> =
             medallionVisible ? "scale-100 opacity-100" : "scale-90 opacity-0"
           }`}
         >
-          <div className="relative">
+          <div className="relative group">
+            {/* Halo de luz radial multicapa */}
             <div
               aria-hidden="true"
-              className="absolute -inset-8 rounded-full bg-[radial-gradient(circle,rgba(224,187,93,0.18),transparent_65%)] animate-pulse"
+              className="absolute -inset-12 rounded-full bg-[radial-gradient(circle,rgba(224,187,93,0.28),transparent_70%)] animate-pulse blur-xl"
             />
-            <div className="relative h-44 w-44 overflow-hidden rounded-full border-2 border-[#e0bb5d]/60 bg-[#0a0d13] p-1 shadow-[0_0_0_12px_rgba(224,187,93,0.06),0_28px_110px_rgba(0,0,0,0.8)] sm:h-56 sm:w-56">
+            
+            {/* Anillos concéntricos giratorios */}
+            <div className="absolute -inset-4 rounded-full border border-[#e0bb5d]/40 animate-spin-slow border-dashed" />
+            <div className="absolute -inset-8 rounded-full border border-cyan-400/20 animate-spin-reverse" />
+
+            <div className="relative h-48 w-48 overflow-hidden rounded-full border-2 border-[#e0bb5d] bg-[#0a0d13] p-1.5 shadow-[0_0_50px_rgba(224,187,93,0.35),0_0_0_12px_rgba(224,187,93,0.08)] sm:h-64 sm:w-64">
               <img
                 src={ISABELLA_MEDALLION_IMAGE}
                 alt="Isabella Villaseñor Medallion"
-                className="h-full w-full rounded-full object-cover object-center"
+                className="h-full w-full rounded-full object-cover object-center filter brightness-105 contrast-105"
               />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#040507]/40 via-transparent to-[#e0bb5d]/20 pointer-events-none" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Escena 3 — Identidad */}
+      {/* Escena 3 — Identidad (Tipografía Dorada Magnífica) */}
       <div
         aria-hidden={scene !== "identity"}
         className={`absolute inset-0 z-10 flex items-center justify-center px-6 text-center transition-opacity duration-[1400ms] ${
-          scene === "identity" ? "opacity-100" : "opacity-0"
+          scene === "identity" ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         <div
@@ -755,53 +766,59 @@ export const IsabellaCinematicTrailer: React.FC<IsabellaCinematicTrailerProps> =
             identityVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
           }`}
         >
-          <p className="text-[10px] font-medium uppercase tracking-[0.46em] text-[#e0bb5d]">
-            Infraestructura cognitiva territorial
-          </p>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-[#e0bb5d]/30 bg-[#e0bb5d]/10 backdrop-blur-sm mb-4">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#e0bb5d]" />
+            <p className="text-[10px] font-semibold uppercase tracking-[0.48em] text-[#e0bb5d]">
+              Infraestructura cognitiva territorial
+            </p>
+          </div>
+
           <h1
             id="isabella-trailer-title"
-            className="mt-5 text-5xl font-semibold tracking-[-0.035em] text-[#fffefa] sm:text-7xl"
+            className="mt-3 text-5xl font-extrabold tracking-[-0.04em] text-[#fffefa] sm:text-7xl lg:text-8xl drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
           >
             Isabella{" "}
-            <span className="font-serif font-normal italic text-[#e0bb5d]">Villaseñor</span>
+            <span className="font-serif font-normal italic bg-gradient-to-r from-[#ffe59d] via-[#e0bb5d] to-[#b38a2e] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(224,187,93,0.4)]">
+              Villaseñor
+            </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-sm leading-7 text-[#d9d3c8] sm:text-base">
+          <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-[#e4dec8] sm:text-lg font-light tracking-wide drop-shadow">
             Inteligencia soberana, con propósito humano.
           </p>
         </div>
       </div>
 
-      {/* Escena 4 — Manifiesto */}
+      {/* Escena 4 — Manifiesto (Prosa Sagrada Poética) */}
       <div
         aria-hidden={scene !== "manifesto"}
         className={`absolute inset-0 z-10 flex items-center justify-center px-6 transition-opacity duration-[1400ms] ${
-          scene === "manifesto" ? "opacity-100" : "opacity-0"
+          scene === "manifesto" ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="space-y-6 text-center">
+        <div className="space-y-8 text-center max-w-2xl">
           {MANIFESTO_LINES.map((line, index) => {
             const lineVisible = elapsedMs >= SCENES[3].at + 500 + index * 1_600;
             return (
               <p
                 key={line}
-                className={`font-serif text-xl italic tracking-[-0.01em] text-[#e9e4da] transition-all duration-[1300ms] ease-out sm:text-2xl ${
+                className={`font-serif text-2xl italic tracking-tight text-[#f4efe6] transition-all duration-[1300ms] ease-out sm:text-3xl lg:text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] ${
                   manifestoVisible && lineVisible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-4 opacity-0"
+                    ? "translate-y-0 opacity-100 scale-100"
+                    : "translate-y-6 opacity-0 scale-95"
                 }`}
               >
-                {line}
+                "{line}"
               </p>
             );
           })}
         </div>
       </div>
 
-      {/* Escena 5 — Llegada */}
+      {/* Escena 5 — Llegada (Botonera CTA Interactiva de Lujo) */}
       <div
         aria-hidden={scene !== "arrival"}
         className={`absolute inset-0 z-10 flex items-center justify-center px-6 text-center transition-opacity duration-[1400ms] ${
-          scene === "arrival" ? "opacity-100" : "opacity-0"
+          scene === "arrival" ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         <div
@@ -809,53 +826,61 @@ export const IsabellaCinematicTrailer: React.FC<IsabellaCinematicTrailerProps> =
             arrivalVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
           }`}
         >
-          <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-[#e0bb5d]">
-            Sistema operativo · v{ISABELLA_VERSION}
-          </p>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="group mt-8 inline-flex items-center gap-3 rounded-full border border-[#e0bb5d]/50 bg-[#e0bb5d]/[0.08] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#efd58a] transition-all duration-500 hover:border-[#e0bb5d] hover:bg-[#e0bb5d]/[0.16] hover:shadow-[0_0_44px_rgba(224,187,93,0.28)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#e0bb5d] cursor-pointer"
-          >
-            Entrar al sistema
-            <ChevronRight
-              className="h-4 w-4 transition-transform duration-500 group-hover:translate-x-1"
-              aria-hidden="true"
-            />
-          </button>
+          <div className="inline-block rounded-full bg-[#e0bb5d]/10 px-4 py-1 border border-[#e0bb5d]/30 backdrop-blur-md">
+            <p className="font-mono text-[10px] uppercase tracking-[0.45em] text-[#e0bb5d] font-semibold">
+              Sistema operativo · v{ISABELLA_VERSION}
+            </p>
+          </div>
+          
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="group relative inline-flex items-center gap-4 overflow-hidden rounded-full border border-[#e0bb5d]/60 bg-gradient-to-r from-[#e0bb5d]/20 via-[#e0bb5d]/10 to-transparent px-10 py-4 text-[11px] font-bold uppercase tracking-[0.35em] text-[#fffefa] transition-all duration-500 hover:border-[#e0bb5d] hover:bg-[#e0bb5d] hover:text-[#040507] hover:shadow-[0_0_50px_rgba(224,187,93,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e0bb5d] cursor-pointer"
+            >
+              <span className="relative z-10">Entrar al sistema</span>
+              <ChevronRight
+                className="relative z-10 h-4 w-4 transition-transform duration-500 group-hover:translate-x-1.5"
+                aria-hidden="true"
+              />
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Progreso por escenas */}
+      {/* Progreso por escenas & Barra inferior de cine */}
       <footer className="absolute bottom-[7vh] left-0 right-0 z-40 px-6 pb-5 sm:px-10">
-        <div className="mx-auto flex max-w-4xl items-center gap-6">
-          <div className="flex items-center gap-2" aria-label={`Escena ${sceneIndex + 1} de ${SCENES.length}`}>
+        <div className="mx-auto flex max-w-4xl items-center gap-6 backdrop-blur-md bg-black/30 p-3 rounded-2xl border border-white/5 shadow-2xl">
+          <div className="flex items-center gap-2.5" aria-label={`Escena ${sceneIndex + 1} de ${SCENES.length}`}>
             {SCENES.map((s, index) => (
               <span
                 key={s.id}
                 title={s.label}
-                className={`h-1 rounded-full transition-all duration-700 ${
+                className={`h-1.5 rounded-full transition-all duration-700 ${
                   index < sceneIndex
                     ? "w-6 bg-[#e0bb5d]/80"
                     : index === sceneIndex
-                      ? "w-10 bg-[#e0bb5d] shadow-[0_0_8px_rgba(224,187,93,0.8)]"
+                      ? "w-10 bg-[#e0bb5d] shadow-[0_0_12px_rgba(224,187,93,0.9)]"
                       : "w-6 bg-white/[0.14]"
                 }`}
               />
             ))}
           </div>
-          <div className="h-px flex-1 overflow-hidden bg-white/[0.08]">
+
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
             <div
-              className="h-full bg-[#e0bb5d]/70 transition-[width] duration-150 ease-linear"
+              className="h-full bg-gradient-to-r from-[#e0bb5d]/60 to-[#e0bb5d] shadow-[0_0_10px_rgba(224,187,93,0.7)] transition-[width] duration-150 ease-linear"
               style={{ width: `${progress}%` }}
             />
           </div>
+
           <button
             type="button"
             onClick={handleClose}
-            className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-[#929da8] transition hover:text-[#fffefa] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#e0bb5d] cursor-pointer"
+            className="group inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-[#bfb8ac] transition hover:text-[#e0bb5d] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#e0bb5d] cursor-pointer"
           >
-            Omitir <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            Omitir <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </button>
         </div>
       </footer>
