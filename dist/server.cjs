@@ -8365,7 +8365,8 @@ function validateBody(schema, req, res) {
 
 // src/lib/logger.ts
 var LEVEL_PRIORITY = { debug: 0, info: 1, warn: 2, error: 3 };
-var minLevel = LEVEL_PRIORITY[process.env.LOG_LEVEL || "info"] ?? 1;
+var configuredLogLevel = typeof process !== "undefined" ? process.env.LOG_LEVEL : void 0;
+var minLevel = LEVEL_PRIORITY[configuredLogLevel || "info"] ?? 1;
 function emit(entry) {
   if (LEVEL_PRIORITY[entry.level] < minLevel) return;
   const json = JSON.stringify(entry);

@@ -578,18 +578,31 @@ function mountApplication(rootElement: HTMLElement): Root {
 function boot(): void {
   bootController.transition("initializing");
 
-  // Consent-gated analytics — no external script loads before consent
-  restoreAdvertisingConsent();
+  // Estas precondiciones son opt-in y nunca deben impedir que se pinte la UI.
+  // En navegadores endurecidos (storage bloqueado o extensiones) se degrada
+  // silenciosamente y el App Shell continúa disponible.
+  try {
+    restoreAdvertisingConsent();
+  } catch {
+    emitRuntimeEvent("runtime_degraded", "warning", {
+      reason: "advertising_consent_unavailable",
+    });
+  }
 
-  // Secure fetch — origin allowlist and prompt policy
-  configureIsabellaFetch({
-    apiOrigins: [window.location.origin],
-    authMode: "memory",
-    defaultTimeoutMs: 30_000,
-    maxTimeoutMs: 55_000,
-    maxBodyBytes: 1_048_576,
-    reviewHighRisk: false,
-  });
+  try {
+    configureIsabellaFetch({
+      apiOrigins: [window.location.origin],
+      authMode: "memory",
+      defaultTimeoutMs: 30_000,
+      maxTimeoutMs: 55_000,
+      maxBodyBytes: 1_048_576,
+      reviewHighRisk: false,
+    });
+  } catch {
+    emitRuntimeEvent("runtime_degraded", "warning", {
+      reason: "secure_fetch_unavailable",
+    });
+  }
 
   const rootElement = document.querySelector<HTMLElement>(ROOT_SELECTOR);
 
