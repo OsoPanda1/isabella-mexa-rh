@@ -2,7 +2,7 @@
 
 > **Infraestructura Cognitiva Territorial Soberana** · Real del Monte, Hidalgo, México
 > **Autor & Arquitecto:** Edwin Oswaldo Castillo Trejo (*Anubis Villaseñor*) · ORCID [0009-0008-5050-1539](https://orcid.org/0009-0008-5050-1539)
-> **Versión:** `v5.3.0` · **Estado:** `Endurecida (0 vulns npm) · JDR verde · 221 tests · ~80% prod`
+> **Versión:** `v5.3.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 221 tests · ~80% prod`
 
 ---
 
@@ -41,8 +41,8 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
     `uuid` v3/v5/v6), introducida de forma transitiva por `statsig-node-lite`.
   - `path-to-regexp = "^6.3.0"` → cierra **CVE-2024-45296** (ReDoS por
     backtracking en rutas), presente de forma transitiva en `@vercel/node`.
-  Tras tirar estos cambios ejecuta `npm install` para regenerar
-  `package-lock.json`. Resultado actual: **`npm audit` → 0 vulnerabilidades**.
+  Tras tirar estos cambios ejecuta `pnpm install` para regenerar
+  `pnpm-lock.yaml`. Resultado actual: **`pnpm audit` → 0 vulnerabilidades**.
 - **Latencia (near-zero):** el ticker de *uptime* global ya no usa `setState`;
   pasó a un `useRef` + `setInterval`, de modo que el contexto de Crown ya no
   re-renderiza toda la app cada segundo. `systemUptimeSeconds` se expone vía
@@ -60,10 +60,19 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
   pruebas (5 tests: idempotencia y contexto de tenant). El servicio queda
   *verde* localmente; ver sección "Módulo JDR" para criterios de salida a
   producción.
+- **Corrección de build en Vercel (migración a pnpm):** el despliegue fallaba
+  en `npm ci` con `lock file's framer-motion@12.43.0 does not satisfy
+  framer-motion@13.1.1` porque `package-lock.json` quedó desincronizado con
+  `package.json` (que pide `framer-motion@^13.1.1`). Se resolvió usando el
+  gestor correcto del proyecto (**pnpm**, cuyo `pnpm-lock.yaml` ya resolvía
+  `framer-motion@13.1.1`): `vercel.json` ahora usa `installCommand: pnpm install`,
+  se eliminó el `package-lock.json`, y `Dockerfile`, GitHub Actions y scripts
+  se migraron a pnpm (`--frozen-lockfile`). Ver
+  `docs/adr/0001-package-manager.md` (v2.0.0).
 
 > **Para verificar antes de desplegar (en tu máquina, el agente no corre
-> node/tsc/vite):** `npm install && npm run verify` (lint + 216 tests + build +
-> `npm audit` en 0 vulns). El módulo JDR se verifica aparte con
+> node/tsc/vite):** `pnpm install && pnpm run verify` (lint + tests + build +
+> `pnpm audit` en 0 vulns). El módulo JDR se verifica aparte con
 > `cd jdr-generator/api && mvn -B verify` (5 tests). Luego `git push origin main`.
 
 ---
@@ -106,12 +115,12 @@ cinemático (`IsabellaCinematicTrailer`).
 ### Despliegue
 
 - **Vercel (producción):** `vercel.json` usa `framework: vite`,
-  `outputDirectory: dist`, y reenvía `/api/*` al handler serverless
-  `api/[...path].ts`. El handler importa el servidor Express de forma
-  **dinámica y cacheada** para no arrastrar módulos nativos
+  `outputDirectory: dist`, `installCommand: pnpm install`, y reenvía `/api/*`
+  al handler serverless `api/[...path].ts`. El handler importa el servidor
+  Express de forma **dinámica y cacheada** para no arrastrar módulos nativos
   (`better-sqlite3`, `three`) al arranque en frío de rutas de salud/stream.
-- **Auto-hospedaje:** `npm run build && npm run start` (Express en
-  `dist/server.cjs`).
+- **Auto-hospedaje:** `pnpm install && pnpm run build && pnpm run start`
+  (Express en `dist/server.cjs`).
 
 ---
 
@@ -147,21 +156,25 @@ La clave pública Ed25519 nativa se exporta (bajo
 
 ---
 
-## Scripts (reales, de `package.json`)
+## Gestor de paquetes y scripts
+
+> El proyecto usa **pnpm** como gestor canónico de dependencias
+> (`pnpm-lock.yaml`). La versión queda fijada por `packageManager` en
+> `package.json`. Ver `docs/adr/0001-package-manager.md` (v2.0.0).
 
 ```bash
-npm ci                 # instalación determinista contra el lockfile
-npm run dev            # servidor Express en desarrollo (tsx server.ts)
-npm run build          # vite build + esbuild server.ts -> dist/server.cjs
-npm run start          # node dist/server.cjs
-npm run lint           # tsc --noEmit (type-check, 0 errores esperados)
-npm test               # vitest run
-npm run verify         # lint && test && build
-npm run check:env      # valida el entorno contra el contrato
-npm run smoke          # smoke test (scripts/smoke.mjs)
+pnpm install --frozen-lockfile   # instalación determinista contra pnpm-lock.yaml
+pnpm run dev            # servidor Express en desarrollo (tsx server.ts)
+pnpm run build          # vite build + esbuild server.ts -> dist/server.cjs
+pnpm run start          # node dist/server.cjs
+pnpm run lint           # tsc --noEmit (type-check, 0 errores esperados)
+pnpm test               # vitest run
+pnpm run verify         # lint && test && build
+pnpm run check:env      # valida el entorno contra el contrato
+pnpm run smoke          # smoke test (scripts/smoke.mjs)
 ```
 
-> Nota: `npm run quality` **no** existe en este repo. Usa `npm run verify`.
+> Nota: `pnpm run quality` **no** existe en este repo. Usa `pnpm run verify`.
 > (El `AGENTS.md` del workspace padre describe un stack Next.js distinto; este
 > repositorio es Vite + Express y sus scripts son los de arriba.)
 

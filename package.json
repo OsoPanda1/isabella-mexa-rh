@@ -3,13 +3,14 @@
   "private": true,
   "version": "5.3.0",
   "type": "module",
+  "packageManager": "pnpm@10.0.0",
   "engines": {
     "node": ">=22.0.0 <23.0.0",
-    "npm": ">=10.0.0 <12.0.0"
+    "pnpm": ">=9.0.0"
   },
   "scripts": {
     "verify:package-policy": "node scripts/verify-package-policy.cjs",
-    "audit:deps": "npm audit --audit-level=high",
+    "audit:deps": "pnpm audit",
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
@@ -18,7 +19,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run lint && npm test && npm run build",
+    "verify": "pnpm run lint && pnpm test && pnpm run build",
     "smoke": "node scripts/smoke.mjs",
     "load:test": "k6 run tests/load/api-smoke.k6.js",
     "quantum:diagnose": "python3 scripts/quantum/isabella_quantum_bridge_v3.py < scripts/quantum/diagnose.json",

@@ -5,7 +5,7 @@ name: Production Readiness & Sovereign Security Matrix (Final)
 # Features:
 #  - Secret scanning baseline (gitleaks + trufflehog)
 #  - Multi-language build (Rust core + Node/TS web)
-#  - Deterministic installs (npm ci), strict lint/typecheck
+#  - Deterministic installs (pnpm --frozen-lockfile), strict lint/typecheck
 #  - SBOM generation (CycloneDX), SLSA-style provenance attestation
 #  - Image build, multi-stage caching, Trivy scanning, cosign OIDC signing
 #  - IaC scanning (Checkov, KubeLinter), canary rollout + smoke tests, automatic rollback
@@ -146,38 +146,37 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js ${{ env.DEFAULT_NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Verify package manager and lockfile
         run: |
           node --version
-          npm --version
-          npm config get package-lock
-          if [ ! -f package-lock.json ]; then
-            echo "Missing package-lock.json" >&2
+          pnpm --version
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "Missing pnpm-lock.yaml" >&2
             exit 1
           fi
 
       - name: Install clean dependencies (immutable)
-        run: npm ci --prefer-offline --no-audit
+        run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Strict typecheck
-        run: npm run typecheck
-
-      - name: Lint (fail on warnings)
-        run: npm run lint --if-present
+      - name: Strict typecheck (tsc --noEmit)
+        run: pnpm run lint
 
       - name: Run tests (CI mode)
-        run: npm test -- --ci --coverage
+        run: pnpm test -- --ci --coverage
 
       - name: Production build (deterministic)
         run: |
-          NODE_ENV=production npm run build
+          NODE_ENV=production pnpm run build
         env:
           ISABELLA_AUTH_SECRET: ${{ secrets.ISABELLA_AUTH_SECRET }}
           API_KEY_PEPPER: ${{ secrets.API_KEY_PEPPER }}
@@ -187,7 +186,7 @@ jobs:
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
 
       - name: Dependency audit (high severity)
-        run: npm audit --audit-level=high || true
+        run: pnpm audit --audit-level=high || true
 
       - name: Generate CycloneDX SBOM (cdxgen)
         run: |

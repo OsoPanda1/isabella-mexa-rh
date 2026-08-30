@@ -1,8 +1,8 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN npx tsc --noEmit && npm run build
 
@@ -14,7 +14,8 @@ RUN addgroup -g 1001 isabella && adduser -u 1001 -G isabella -s /bin/sh -D isabe
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/server.ts ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY --from=builder /app/pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --prod --frozen-lockfile --ignore-scripts && pnpm store prune
 
 RUN mkdir -p /app/data /app/.isabella-data && chown -R isabella:isabella /app
 USER isabella
