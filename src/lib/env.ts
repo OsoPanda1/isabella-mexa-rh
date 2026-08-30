@@ -1,4 +1,12 @@
-const SECRET_KEYS = ["ISABELLA_AUTH_SECRET", "API_KEY_PEPPER", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_JWT_SECRET"] as const;
+const SECRET_KEYS = [
+  "ISABELLA_AUTH_SECRET",
+  "API_KEY_PEPPER",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_JWT_SECRET",
+  "SUPABASE_SECRET_KEY",
+  "STRIPE_SECRET_KEY",
+  "BRAINTRUST_API_KEY",
+] as const;
 const PLACEHOLDER = /^(|changeme|change-me|your_.+|YOUR_.+|example|dev-secret|secret|password)$/i;
 
 export function assertStrictEnv(): void {

@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@idlen/chat-sdk": "^1.0.5",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@statsig/js-client": "^3.33.4",
     "@supabase/supabase-js": "^2.112.3",
     "@vercel/analytics": "^2.0.1",
@@ -65,6 +67,7 @@
     "@vitest/coverage-v8": "^3.2.7",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.1",
+    "prisma": "7.10.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",

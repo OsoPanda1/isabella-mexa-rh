@@ -7,9 +7,24 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 
 # Environment variables
+.env
+.env.*
+!.env.example
 .env*.local
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+/src/generated/prisma
+
+# Runtime / local state (never commit data or secrets)
+*.db
+*.db-shm
+*.db-wal
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
+.isabella-data/
+.isabella-cache/
+dist/

@@ -26,6 +26,34 @@ const RECOMMENDED = {
   rateLimit: ["REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
   billing: ["STRIPE_SECRET_KEY"],
   voice: ["VOICE_API_URL"],
+  /* Neon como relacional autoritativo: el paquete completo del pooler. */
+  neonPrimary: [
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
+    "DIRECT_URL",
+    "PGHOST",
+    "PGHOST_UNPOOLED",
+    "PGUSER",
+    "PGDATABASE",
+    "PGPASSWORD",
+    "POSTGRES_URL_NON_POOLING",
+    "POSTGRES_URL_NO_SSL",
+  ],
+  /* Prisma Postgres: conexiones de migración/orquestación. */
+  prismaPostgres: ["DATABASE_PRISMA_DATABASE_URL", "DATABASE_PRISMA_POSTGRES_URL"],
+  /* Supabase Postgres prefijado: coexiste con el primario Neon. */
+  supabasePostgres: [
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_URL",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_URL_NON_POOLING",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_PRISMA_URL",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_HOST",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_USER",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_PASSWORD",
+    "SUPABASE_SERVICE_ROLE_KEY_POSTGRES_DATABASE",
+  ],
+  braintrust: ["BRAINTRUST_API_KEY", "BRAINTRUST_PROJECT_ID"],
+  stripeMcp: ["STRIPE_MCP_KEY"],
+  statsig: ["STATSIG_SERVER_API_KEY"],
 };
 
 function parseEnvFile(filePath: string): Record<string, string> {

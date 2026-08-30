@@ -1,0 +1,3308 @@
+Lo siguiente está planteado como un inventario de ingeniería objetivo: qué corregir, qué endurecer, qué reorganizar y qué crear para convertir la rama actual en una plataforma cognitiva enterprise/high-assurance. No significa que cada elemento enumerado sea una vulnerabilidad confirmada; cuando se trata de evolución recomendada, lo indico como tal.
+
+BACKLOG MAESTRO ISABELLA-MEXA-RH
+Clasificación
+
+P0 — Bloqueador: no debe pasar a producción sin resolver.
+P1 — Crítico: debe resolverse antes de producción Enterprise.
+P2 — Alto: necesario para hardening y escalabilidad.
+P3 — Medio: robustecimiento y deuda técnica.
+P4 — Evolutivo: capacidad nueva/recomendada.
+
+I. NÚCLEO DE ARRANQUE Y COMPOSICIÓN
+server.ts
+
+P0
+
+Dividir el God Module.
+Separar bootstrap de lógica de negocio.
+Eliminar acceso directo de rutas a subsistemas internos.
+Centralizar inicialización.
+Garantizar que toda ruta pase por middleware de identidad.
+Garantizar que toda mutación pase por autorización.
+Garantizar que toda acción sensible produzca audit event.
+Derivar tenantId exclusivamente desde el principal autenticado.
+Eliminar cualquier confianza en tenantId proporcionado por cliente para operaciones sensibles.
+Crear RequestContext.
+Crear PrincipalContext.
+Crear TenantContext.
+Crear PolicyDecisionContext.
+Crear CorrelationContext.
+
+P1
+Separar en:
+
+src/core/bootstrap/
+src/core/context/
+src/core/http/
+src/core/security/
+src/core/cognition/
+src/core/memory/
+src/core/tools/
+src/core/economy/
+src/core/governance/
+src/core/evidence/
+src/core/quantum/
+src/core/observability/
+
+P2
+Crear composition root explícito:
+
+ApplicationKernel
+SecurityKernel
+CognitiveKernel
+EconomicKernel
+EvidenceKernel
+II. api/[...path].ts
+
+Debe convertirse en un gateway delgado.
+
+Implementar:
+
+request normalization;
+correlation ID;
+tenant resolution;
+principal resolution;
+authentication;
+authorization;
+rate limit;
+schema validation;
+route dispatch;
+error normalization;
+audit;
+response security headers.
+
+No debe contener lógica de negocio.
+
+Agregar:
+
+X-Correlation-ID
+X-Request-ID
+X-Tenant-ID
+X-Principal-ID
+X-Policy-Decision-ID
+
+pero evitando revelar identificadores sensibles innecesariamente al cliente.
+
+III. src/lib/express-routes.ts
+
+Reorganizar por bounded context:
+
+/auth
+/identity
+/ai
+/memory
+/tools
+/epistemic
+/governance
+/economy
+/creator
+/quantum
+/audit
+/admin
+/health
+
+Cada ruta debe declarar:
+
+method
+path
+auth requirement
+required scopes
+tenant requirement
+input schema
+output schema
+rate limit class
+audit event
+data classification
+IV. CONTRATOS API
+src/lib/api-contracts.ts
+
+Convertirlo en contrato canónico.
+
+Agregar schemas para:
+
+authentication;
+sessions;
+API keys;
+memory;
+inference;
+tool invocation;
+claims;
+epistemic classification;
+quantum requests;
+kill switch;
+audit events;
+economy;
+wallets;
+ledger;
+payouts;
+subscriptions;
+governance;
+federations.
+
+Todos los inputs deben validar:
+
+type
+length
+format
+enum
+range
+tenant
+authorization
+idempotency
+V. docs/api/openapi.yaml
+
+Debe convertirse en source of truth contractual, o dejar explícitamente que api-contracts.ts es la fuente canónica.
+
+Actualmente existen múltiples representaciones:
+
+docs/api/openapi.yaml
+docs/api/route-catalog.md
+docs/api/scopes-catalog.md
+jdr-generator/openapi/isabella-jdr-v1.yaml
+src/lib/api-contracts.ts
+
+Esto requiere resolver:
+
+P0 — API Contract Authority
+
+Crear:
+
+docs/api/API_CONTRACT_AUTHORITY.md
+
+definiendo:
+
+Canonical Source
+Generated Artifacts
+Runtime Validation
+Contract Tests
+Versioning
+Deprecation
+Compatibility
+
+CI debe detectar:
+
+implementation ≠ OpenAPI
+VI. jdr-generator/openapi/isabella-jdr-v1.yaml
+
+Revisar si representa:
+
+una API independiente;
+un generador;
+una versión histórica;
+un contrato experimental.
+
+Si es histórico, moverlo:
+
+docs/archive/
+
+Si es activo:
+
+generators/
+
+y establecer relación formal con OpenAPI principal.
+
+VII. AUTENTICACIÓN
+src/lib/auth.server.ts
+src/lib/middleware/auth.ts
+tests/auth.test.ts
+tests/auth-hardening.test.ts
+tests/identity-authority.test.ts
+
+Implementar o verificar exhaustivamente:
+
+session rotation;
+session expiration;
+refresh rotation;
+token revocation;
+replay protection;
+audience;
+issuer;
+JWT clock skew;
+nonce;
+CSRF;
+fixation protection;
+login throttling;
+brute-force detection;
+account lock policy;
+suspicious login detection;
+device/session inventory.
+
+Crear:
+
+src/lib/security/session-revocation.ts
+src/lib/security/session-risk.ts
+src/lib/security/device-binding.ts
+VIII. WEBAuthn
+
+Crear formalmente:
+
+src/lib/identity/webauthn/
+
+con:
+
+registration.ts
+authentication.ts
+attestation.ts
+credential-store.ts
+revocation.ts
+recovery.ts
+
+Agregar:
+
+phishing-resistant authentication;
+resident credentials;
+credential rotation;
+lost-device recovery;
+administrator recovery;
+step-up authentication.
+IX. API KEYS
+src/lib/api-keys.ts
+
+Agregar:
+
+hash irreversible;
+prefix identificable;
+secret mostrado una sola vez;
+rotation;
+revocation;
+expiration;
+last-used;
+creation IP;
+creation principal;
+tenant binding;
+scope binding;
+environment binding;
+key status;
+anomaly detection.
+
+Crear estados:
+
+ACTIVE
+SUSPENDED
+REVOKED
+EXPIRED
+COMPROMISED
+
+Agregar keyVersion.
+
+X. AUTHORIZATION PLANE
+
+Archivos:
+
+src/lib/authz/
+src/lib/authz-runtime/client.ts
+authz-runtime/isabella_runtime.py
+scripts/authz/isabella_scope_engine_v2.py
+scripts/authz/isabella_scopes_catalog_v2.json
+docs/api/scopes-catalog.md
+
+Este es uno de los componentes más importantes de todo Isabella.
+
+P0 — Una sola autoridad de políticas
+
+Crear:
+
+Policy Registry
+Policy Compiler
+Policy Version
+Policy Hash
+Policy Signature
+
+Cada decisión debe producir:
+
+policyId
+policyVersion
+policyHash
+principal
+tenant
+resource
+action
+decision
+reason
+timestamp
+decisionId
+XI. PDP/PEP
+
+Implementar formalmente:
+
+PEP → PDP → Decision → PEP → Resource
+
+Nunca:
+
+route → random permission check
+
+Crear:
+
+PolicyDecision
+PolicyEvaluation
+PolicyDenialReason
+PolicyEvaluationTrace
+XII. ABAC
+
+Además de RBAC, introducir:
+
+subject
+tenant
+resource
+resourceOwner
+action
+environment
+risk
+device
+network
+time
+dataClassification
+
+Ejemplo:
+
+ALLOW inference
+IF
+principal.tenant == resource.tenant
+AND
+scope includes ai:inference
+AND
+risk <= principal.maxRisk
+XIII. CAPABILITY SECURITY
+
+Crear:
+
+CapabilityToken
+CapabilityRegistry
+CapabilityIssuer
+CapabilityVerifier
+CapabilityRevocation
+
+Especialmente para:
+
+ORION;
+quantum;
+automation;
+economy;
+administrator actions.
+XIV. POLICY DRIFT
+
+Crear test automático que compare:
+
+TypeScript PDP
+Python PDP
+JSON scope registry
+OpenAPI scopes
+documentation scopes
+
+Resultado:
+
+PASS = identical semantics
+FAIL = policy drift
+XV. MULTI-TENANCY
+
+Archivos:
+
+docs/adr/0003-tenant-isolation.md
+src/lib/persistence/
+src/domains/
+tests/security/cross-tenant.test.ts
+
+Crear una política universal:
+
+Ninguna capa puede aceptar un tenant diferente del PrincipalContext salvo operaciones administrativas explícitamente autorizadas.
+
+Probar:
+
+memory;
+economy;
+API keys;
+audit;
+tools;
+claims;
+social connectors;
+quantum;
+files;
+marketplace;
+creator profile.
+XVI. src/lib/persistence/authority.ts
+
+Debe establecer:
+
+Which datastore is authoritative?
+Which replica is authoritative?
+Which cache is authoritative?
+Who may mutate?
+Who may reconcile?
+
+No puede existir ambigüedad.
+
+XVII. src/lib/persistence/store-authority.ts
+
+Formalizar:
+
+System of Record
+System of Evidence
+Cache
+Projection
+Read Model
+Temporary State
+
+Crear matriz:
+
+Dato	SoR	Cache	Evidence	Retención
+Identity	PostgreSQL	Redis	Audit	definida
+Memory	PostgreSQL/vector	cache	Audit	definida
+Ledger	PostgreSQL	no	immutable evidence	permanente/regulada
+Session	Redis/DB	—	security event	limitada
+Quantum result	object storage	—	audit	definida
+XVIII. src/lib/durable-json.server.ts
+
+Debe quedar limitado a:
+
+development
+test
+local fallback
+migration
+
+No debe ser backend financiero ni de producción multi-tenant.
+
+Agregar:
+
+DURABLE_JSON_ALLOWED=false
+
+por defecto en producción.
+
+XIX. DATA ARTIFACTS
+
+Eliminar del repositorio:
+
+data/isabella.db
+data/isabella.db-wal
+data/isabella.db-shm
+.isabella-data/eventbus-outbox.json
+
+y revisar todo el historial Git.
+
+Crear:
+
+.gitignore
+.data/
+runtime/
+.local/
+
+y CI que falle si encuentra:
+
+*.db
+*.db-wal
+*.db-shm
+runtime state
+outbox state
+private keys
+XX. MIGRACIONES SUPABASE
+supabase/migrations/001_isabella_schema.sql
+
+Revisar y reforzar:
+
+RLS;
+tenant constraints;
+foreign keys;
+unique constraints;
+check constraints;
+indexes;
+timestamps;
+soft deletion;
+audit columns;
+classification;
+retention;
+encryption strategy.
+
+Crear migraciones separadas:
+
+002_identity
+003_authorization
+004_memory
+005_audit
+006_economy
+007_creator
+008_governance
+009_quantum
+010_observability
+XXI. MEMORY / MNEMOSYNE
+src/domains/ai/infrastructure/memory-store.ts
+
+Crear una arquitectura explícita:
+
+ImmediateMemory
+SessionMemory
+ProjectMemory
+TerritorialMemory
+HistoricalMemory
+
+Cada memoria debe tener:
+
+memoryId
+tenantId
+principalId
+scope
+classification
+source
+confidence
+createdAt
+updatedAt
+expiresAt
+retentionPolicy
+provenance
+embeddingVersion
+policyVersion
+XXII. MEMORY GOVERNANCE
+
+Agregar:
+
+memory consent;
+memory opt-out;
+forget-me;
+deletion;
+retention;
+archival;
+legal hold;
+provenance;
+source attribution;
+confidence;
+contradiction detection.
+
+Crear:
+
+MemoryPolicyEngine
+MemoryRetentionEngine
+MemoryProvenanceService
+MemoryDeletionService
+MemoryConflictResolver
+XXIII. MEMORY POISONING
+
+Crear defensa contra:
+
+malicious memory
+prompt-injected memory
+false user claims
+cross-tenant memory
+stale memory
+poisoned embeddings
+
+Agregar:
+
+MemoryTrustScore
+MemorySourceTrust
+MemoryQuarantine
+MemoryReviewQueue
+XXIV. INFERENCE
+src/lib/isabella-inference-engine.ts
+src/lib/isabella.server.ts
+
+Separar:
+
+Prompt Construction
+Context Retrieval
+Policy Gate
+Provider Adapter
+Inference
+Output Validation
+Safety
+Audit
+
+Nunca permitir que el proveedor de modelo decida autorización.
+
+XXV. TAMVAI BOUNDARY
+
+Si Isabella debe utilizar exclusivamente TAMVAI:
+
+Crear:
+
+src/providers/tamvai/
+
+con:
+
+TAMVAIClient
+TAMVAIModelRouter
+TAMVAIHealth
+TAMVAIUsage
+TAMVAIQuota
+
+Toda inferencia debe pasar por:
+
+Inference Gateway
+
+y no directamente por SDKs externos.
+
+Los proveedores externos deben quedar detrás de adapters explícitamente permitidos.
+
+XXVI. GEMINI
+
+Si TAMVAI es obligatorio:
+
+Gemini fallback = REMOVE
+
+o:
+
+ALLOW_EXTERNAL_MODEL_PROVIDER=false
+
+y además:
+
+ProviderPolicy
+
+para impedir bypass.
+
+XXVII. CLAIM RADAR
+tests/claim-radar.test.ts
+
+Crear formalmente:
+
+Claim
+Evidence
+Source
+SourceAuthority
+DOI
+PublicationDate
+EvidenceAge
+Confidence
+Contradiction
+EpistemicStatus
+
+Estados:
+
+VERIFIED
+SUPPORTED
+PLAUSIBLE
+UNCERTAIN
+DISPUTED
+REFUTED
+UNVERIFIABLE
+OPINION
+FICTION
+XXVIII. EPISTEMIC CLASSIFIER
+tests/epistemic.test.ts
+
+Agregar:
+
+source ranking;
+domain reputation;
+primary-source preference;
+DOI validation;
+retraction detection;
+duplicate source detection;
+citation graph;
+temporal decay;
+contradiction analysis;
+claim decomposition.
+
+Crear:
+
+EpistemicEvidenceGraph
+XXIX. PROVENANCE
+
+Cada afirmación generada por Isabella debería poder rastrearse:
+
+User Request
+ ↓
+Retrieved Memory
+ ↓
+External Sources
+ ↓
+Claim
+ ↓
+Evidence
+ ↓
+Inference
+ ↓
+Response
+
+Crear ProvenanceEnvelope.
+
+XXX. PROMPT INJECTION
+
+El promptInjectionGuard debe evolucionar hacia:
+
+Input Scanner
+Instruction Boundary Detector
+Tool Instruction Firewall
+Memory Injection Detector
+Retrieved Content Sanitizer
+Output Policy Checker
+
+Y tests contra:
+
+indirect injection;
+tool poisoning;
+document injection;
+webpage injection;
+memory poisoning;
+encoded payloads;
+multilingual injection;
+nested instructions.
+XXXI. ORION
+
+Crear una verdadera arquitectura de ejecución:
+
+Tool Registry
+ ↓
+Tool Risk Classifier
+ ↓
+PDP
+ ↓
+Capability Token
+ ↓
+Sandbox
+ ↓
+Execution
+ ↓
+Result Validator
+ ↓
+Audit
+
+Cada tool necesita:
+
+toolId
+version
+owner
+risk
+permissions
+networkAccess
+filesystemAccess
+secretsAccess
+timeout
+memoryLimit
+cpuLimit
+outputLimit
+XXXII. SANDBOX
+
+Crear:
+
+ToolSandbox
+SandboxPolicy
+SandboxRuntime
+SandboxNetworkPolicy
+SandboxFilesystemPolicy
+SandboxResourcePolicy
+
+Prohibir por defecto:
+
+host filesystem
+host network
+privileged containers
+host PID
+host IPC
+arbitrary binaries
+secret mounts
+XXXIII. TOOL REGISTRY
+
+Crear catálogo firmado.
+
+Cada herramienta debe tener:
+
+Tool Manifest
+Tool Hash
+Tool Version
+Tool Signature
+Capabilities
+Risk Level
+Owner
+Approval
+Expiration
+XXXIV. MCP
+tests/mcp-adapters.test.ts
+
+Agregar:
+
+MCP server identity;
+server allowlist;
+tool provenance;
+schema validation;
+capability mapping;
+timeout;
+rate limits;
+malicious MCP server detection;
+tool description poisoning defense.
+XXXV. AUTOMATION
+src/lib/automation/registry.ts
+tests/automation.test.ts
+
+Este módulo necesita controles especiales.
+
+Clasificar acciones:
+
+READ
+ANALYZE
+RECOMMEND
+SIMULATE
+MODIFY
+DELETE
+DEPLOY
+FINANCIAL
+SECURITY
+
+Y niveles:
+
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+Las acciones DELETE, DEPLOY, FINANCIAL, SECURITY deben requerir controles adicionales.
+
+XXXVI. SELF-HEALING
+
+No permitir:
+
+AI → arbitrary remediation
+
+Usar:
+
+Diagnosis
+ ↓
+Recommendation
+ ↓
+Policy
+ ↓
+Risk
+ ↓
+Approval
+ ↓
+Execution
+ ↓
+Verification
+ ↓
+Rollback
+
+Crear:
+
+RemediationPlan
+RemediationApproval
+RemediationExecution
+RemediationRollback
+XXXVII. KILL SWITCH
+src/lib/kill-switch.ts
+tests/kill-switch.test.ts
+
+Debe tener niveles:
+
+SEV-1
+SEV-2
+SEV-3
+SEV-4
+
+y scopes:
+
+GLOBAL
+TENANT
+USER
+TOOL
+MODEL
+ECONOMY
+QUANTUM
+AUTOMATION
+API
+
+El kill switch debe estar fuera del mismo componente que pretende apagar.
+
+XXXVIII. KILL SWITCH INDEPENDIENTE
+
+Crear:
+
+Emergency Control Plane
+
+con:
+
+manual override
+hardware/security-key option
+dual authorization
+emergency credential
+immutable audit
+automatic expiry
+reason code
+incident ID
+XXXIX. ECONOMÍA
+
+Archivos:
+
+src/lib/economy.server.ts
+src/lib/creator-economy/economy-service.ts
+src/lib/creator-economy/ledger.ts
+src/lib/creator-economy/payouts.ts
+src/lib/creator-economy/routes.ts
+src/lib/creator-economy/persistence/creator-economy-store.ts
+src/domains/economy/types.ts
+
+Deben consolidarse.
+
+No debe haber múltiples fuentes para el balance.
+
+XL. DOUBLE-ENTRY LEDGER
+
+Crear:
+
+Account
+Journal
+JournalEntry
+Debit
+Credit
+Transaction
+Settlement
+Reconciliation
+
+Invariant:
+
+SUM(debits) = SUM(credits)
+
+siempre.
+
+XLI. IDEMPOTENCIA FINANCIERA
+
+Todas las operaciones financieras deben aceptar:
+
+Idempotency-Key
+
+y almacenar:
+
+idempotencyKey
+requestHash
+responseHash
+status
+createdAt
+expiresAt
+XLII. PAYOUTS
+src/lib/creator-economy/payouts.ts
+
+Agregar:
+
+payout state machine;
+fraud screening;
+KYC/AML boundary cuando sea jurídicamente aplicable;
+minimum payout;
+hold period;
+dispute handling;
+reversal;
+reconciliation;
+webhook signature verification.
+XLIII. social-connectors.ts
+
+Agregar:
+
+OAuth state;
+PKCE;
+token encryption;
+token rotation;
+revocation;
+least privilege;
+platform-specific scopes;
+connector health;
+connector quarantine.
+XLIV. skills-engine.ts
+
+Este componente puede convertirse en una de las piezas diferenciales de Isabella.
+
+Crear:
+
+Skill
+SkillVersion
+SkillManifest
+SkillCapability
+SkillPolicy
+SkillTrust
+SkillProvenance
+SkillDependency
+SkillLifecycle
+
+Estados:
+
+DRAFT
+TESTING
+APPROVED
+ACTIVE
+DEPRECATED
+REVOKED
+QUARANTINED
+XLV. SKILL MARKETPLACE
+
+Recomendación estratégica:
+
+Crear un mercado de skills gobernadas.
+
+Cada skill:
+
+manifest
+version
+author
+signature
+capabilities
+permissions
+dependencies
+price
+license
+risk
+trust score
+audit history
+XLVI. CRYPTO
+src/lib/crypto/index.ts
+
+Crear una política criptográfica central:
+
+CryptoPolicy
+AlgorithmRegistry
+KeyPolicy
+KeyLifecycle
+SignaturePolicy
+HashPolicy
+
+No permitir que cada módulo elija algoritmos arbitrariamente.
+
+XLVII. CRYPTOGRAPHIC PROFILE
+docs/CRYPTOGRAPHIC_PROFILE.md
+
+Debe especificar:
+
+SHA-256;
+SHA-3 si aplica;
+Ed25519;
+X25519;
+AES-256-GCM;
+HKDF;
+Argon2id;
+PQC algorithms;
+key sizes;
+rotation;
+expiration;
+HSM policy.
+
+Y distinguir:
+
+IMPLEMENTED
+EXPERIMENTAL
+PLANNED
+NOT CERTIFIED
+XLVIII. PQC
+
+No declarar "quantum safe" solamente por tener código Dilithium/Kyber.
+
+Crear:
+
+PQCAlgorithmRegistry
+PQCKeyLifecycle
+PQCInteropTests
+PQCFailureTests
+HybridCrypto
+
+Recomendación:
+
+Classical + PQC hybrid
+
+durante transición.
+
+XLIX. HSM
+
+Crear adapter:
+
+HSMProvider
+KeyHandle
+Sign
+Verify
+Encrypt
+Decrypt
+Rotate
+Destroy
+
+Las claves críticas no deben residir en variables de entorno ordinarias.
+
+L. TEE
+
+Si realmente se requiere TEE:
+
+crear:
+
+TEEAttestation
+TEEIdentity
+TEEQuote
+TEEVerification
+TEEPolicy
+
+y no limitarlo a una mención documental.
+
+LI. AUDIT TRAIL
+src/domains/ai/infrastructure/audit-tracer.ts
+tests/ledger-verify.test.ts
+
+Crear:
+
+AuditEvent
+AuditEnvelope
+EvidenceRecord
+HashChain
+MerkleTree
+Signature
+Timestamp
+Anchor
+LII. AUDIT EVENT MÍNIMO
+
+Cada evento:
+
+eventId
+timestamp
+tenantId
+principalId
+sessionId
+correlationId
+requestId
+action
+resource
+resourceId
+decisionId
+policyId
+policyVersion
+result
+risk
+source
+hash
+previousHash
+signature
+LIII. HASH CHAIN
+
+Implementar:
+
+H[n] =
+SHA256(
+ canonical(event[n]) +
+ H[n-1]
+)
+
+No utilizar serialización JSON no determinista.
+
+LIV. MERKLE ANCHOR
+
+Agrupar eventos:
+
+events
+ ↓
+Merkle Tree
+ ↓
+Root
+ ↓
+Signature
+ ↓
+External Anchor
+LV. bookpi-ledger
+
+Debe aclararse formalmente si BookPI es:
+
+economic ledger
+evidence ledger
+governance ledger
+
+Si cumple las tres funciones, separarlas lógicamente.
+
+LVI. FEDERATIONS
+src/lib/federations.ts
+
+Crear:
+
+Federation
+FederationNode
+FederationPolicy
+FederationTrust
+FederationMembership
+FederationCapability
+FederationRevocation
+
+Cada federación debe tener:
+
+identity
+trust root
+policy namespace
+key material
+membership
+audit
+revocation
+LVII. ATLAS
+src/lib/atlas.functions.ts
+
+Definir formalmente:
+
+Atlas Node
+Atlas Identity
+Atlas Capability
+Atlas Route
+Atlas Policy
+Atlas Federation
+Atlas Evidence
+Atlas Health
+
+y evitar que Atlas sea solamente un conjunto de funciones utilitarias.
+
+LVIII. anubis.server.ts
+
+Este módulo debe documentarse como:
+
+security primitive
+identity layer
+governance mechanism
+orchestration layer
+
+No debe contener autoridad implícita.
+
+Toda autoridad debe ser verificable.
+
+LIX. OBSERVABILIDAD
+
+Crear OpenTelemetry formal:
+
+Tracer
+Meter
+Logger
+
+Instrumentar:
+
+HTTP;
+auth;
+PDP;
+inference;
+memory;
+tool;
+economy;
+quantum;
+database;
+cache;
+queue.
+LX. CORRELATION
+
+Un request debe mantener:
+
+Correlation ID
+Trace ID
+Span ID
+Tenant ID
+Principal ID
+Decision ID
+Audit ID
+
+desde entrada hasta evidencia.
+
+LXI. SLI/SLO
+docs/operations/slo-sli.md
+
+Convertirlo en métricas reales:
+
+availability
+p95 latency
+p99 latency
+inference success
+policy decision latency
+tool success
+memory retrieval latency
+database latency
+queue delay
+audit persistence
+LXII. ERROR MODEL
+docs/api/error-model.md
+
+Crear códigos estables:
+
+AUTH_*
+AUTHZ_*
+TENANT_*
+MEMORY_*
+TOOL_*
+MODEL_*
+QUANTUM_*
+ECONOMY_*
+LEDGER_*
+GOV_*
+AUDIT_*
+SYSTEM_*
+
+Nunca filtrar stack traces en producción.
+
+LXIII. RATE LIMITING
+
+Crear clases:
+
+AUTH
+INFERENCE
+MEMORY
+TOOL
+QUANTUM
+ECONOMY
+ADMIN
+PUBLIC
+
+Rate limit por:
+
+IP
+principal
+tenant
+API key
+tool
+endpoint
+risk
+LXIV. ABUSE ENGINE
+
+Nueva capacidad recomendada:
+
+AbuseDetection
+AnomalyDetection
+RiskScoring
+BehaviorProfile
+ThreatScore
+AccountQuarantine
+LXV. AI RED TEAM
+
+Crear:
+
+tests/redteam/
+
+con:
+
+prompt injection
+jailbreak
+tool escalation
+data exfiltration
+tenant escape
+memory poisoning
+policy bypass
+credential abuse
+economic manipulation
+model confusion
+LXVI. FUZZING
+
+Agregar fuzzing para:
+
+API payloads;
+JWT claims;
+scopes;
+tenant IDs;
+memory metadata;
+tool schemas;
+OpenAPI contracts;
+ledger transactions;
+webhook payloads.
+LXVII. PROPERTY TESTING
+
+Propiedades:
+
+DENY is never converted to ALLOW
+tenant A cannot access tenant B
+debit == credit
+revoked key never authenticates
+expired capability never executes
+kill switch always dominates execution
+audit hash chain never silently skips
+LXVIII. TEST SUITE ACTUAL
+
+Los tests existentes incluyen áreas valiosas:
+
+tests/auth.test.ts
+tests/auth-hardening.test.ts
+tests/cross-tenant.test.ts
+tests/authz-bypass.test.ts
+tests/tool-escalation.test.ts
+tests/claim-radar.test.ts
+tests/epistemic.test.ts
+tests/ledger-verify.test.ts
+tests/kill-switch.test.ts
+tests/automation.test.ts
+tests/creator-economy.test.ts
+tests/economy.test.ts
+tests/identity-authority.test.ts
+tests/persistence.test.ts
+tests/persistence-authority.test.ts
+tests/lab-mode.test.ts
+tests/api-wrapper.test.ts
+tests/mcp-adapters.test.ts
+
+Pero debe crearse una matriz central:
+
+Security Control
+Test
+Evidence
+Coverage
+Last Run
+Owner
+Severity
+LXIX. CI/CD
+.github/workflows/ci.yml
+.github/workflows/production-readiness.yml
+.github/workflows/ci-cosign.yml
+
+Eliminar:
+
+|| true
+
+de controles que supuestamente sean gates.
+
+Especialmente:
+
+SBOM
+KubeLinter
+security scan
+provenance
+policy validation
+contract validation
+LXX. SLSA / PROVENANCE
+
+No llamar a algo:
+
+SLSA
+
+si solamente es "SLSA-like".
+
+Implementar realmente:
+
+build provenance
+source identity
+builder identity
+artifact digest
+dependency graph
+attestation
+signature
+verification
+LXXI. COSIGN
+
+Fijar:
+
+cosign version
+image digest
+OIDC issuer
+repository identity
+workflow identity
+branch/tag
+
+Crear policy:
+
+unsigned artifact = DENY
+unknown signer = DENY
+wrong repository = DENY
+wrong workflow = DENY
+LXXII. SBOM
+
+Eliminar cualquier:
+
+|| true
+
+Crear:
+
+SBOM attestation
+SBOM signature
+SBOM retention
+SBOM diff
+dependency approval
+LXXIII. CONTAINER
+Dockerfile
+
+Reforzar:
+
+non-root
+read-only filesystem
+drop capabilities
+no-new-privileges
+minimal base
+pinned dependencies
+healthcheck
+resource limits
+LXXIV. KUBERNETES
+
+Crear/revisar:
+
+NetworkPolicy
+PodSecurity
+ServiceAccount
+RBAC
+Secrets
+ResourceQuota
+LimitRange
+HPA
+PDB
+TopologySpread
+AdmissionPolicy
+
+Nunca permitir:
+
+privileged: true
+hostNetwork: true
+hostPID: true
+
+sin excepción documentada.
+
+LXXV. kube-linter
+
+Eliminar:
+
+|| true
+
+Crear allowlist formal para excepciones:
+
+exception
+reason
+owner
+expiration
+risk acceptance
+LXXVI. SECRETS
+
+Crear:
+
+SecretInventory
+SecretRotation
+SecretLeakDetection
+SecretUsageAudit
+
+CI debe ejecutar:
+
+Gitleaks
+TruffleHog
+secret scanning
+LXXVII. ENVIRONMENT
+.env.example
+authz-runtime/.env.example
+scripts/voice/.env.example
+
+Separar:
+
+development
+test
+staging
+production
+
+y nunca compartir defaults inseguros.
+
+LXXVIII. VOICE
+scripts/voice/voice_api.py
+
+Crear:
+
+VoiceProvider
+VoicePolicy
+VoiceConsent
+VoiceQuota
+VoiceAudit
+VoiceAbuseDetection
+
+Agregar protección contra:
+
+voice cloning abuse;
+unauthorized synthesis;
+excessive usage;
+prompt-to-voice injection.
+LXXIX. CREATOR ECONOMY
+docs/creator-economy/SPECIFICATION.md
+
+Debe transformarse en especificación formal:
+
+Identity
+Skill
+Creator
+Asset
+Listing
+Purchase
+Revenue
+Commission
+Settlement
+Payout
+Dispute
+Refund
+Tax
+Audit
+LXXX. CATTLEYA FINANCE
+src/components/Finance/CattleyaFinanceView.tsx
+
+No debe considerarse solamente UI.
+
+Debe consumir:
+
+read-only financial projections
+
+y nunca permitir mutaciones económicas directamente desde componentes React.
+
+Toda mutación:
+
+UI
+ ↓
+API
+ ↓
+Authorization
+ ↓
+Economic Service
+ ↓
+Ledger
+LXXXI. DASHBOARD
+src/components/Dashboard/Cockpit.tsx
+
+Agregar indicadores:
+
+System Health
+Policy Health
+Memory Health
+Inference Health
+Tool Health
+Economy Health
+Audit Integrity
+Security Events
+Federation Health
+Quantum Health
+
+Pero sin mostrar secretos ni datos cross-tenant.
+
+LXXXII. UI ENTERPRISE
+EnterpriseRetractableDock.tsx
+
+Agregar:
+
+permission-aware navigation;
+tenant-aware navigation;
+capability-aware buttons;
+disabled-state explanation;
+audit indicator;
+security posture.
+
+No esconder seguridad únicamente en frontend.
+
+LXXXIII. flags.ts
+
+Convertir feature flags en sistema gobernado:
+
+FeatureFlag
+Owner
+Environment
+Risk
+Expiration
+Rollout
+TenantAllowlist
+Audit
+
+Prohibir flags eternos.
+
+LXXXIV. LAB MODE
+tests/lab-mode.test.ts
+
+Lab Mode debe estar aislado:
+
+NO_PRODUCTION_DATA
+NO_REAL_PAYOUTS
+NO_REAL_SECRETS
+NO_REAL_EXTERNAL_TOOLS
+NO_ADMIN_ESCALATION
+LXXXV. DOCUMENTACIÓN
+
+Los documentos:
+
+AGENTS.md
+SECURITY.md
+CONTRIBUTING.md
+README.md
+docs/COMPONENT_STATUS.md
+docs/SYSTEM_OF_RECORD.md
+docs/BUILD_PROVENANCE.md
+docs/CRYPTOGRAPHIC_PROFILE.md
+docs/architecture/target-architecture.md
+docs/architecture/adapter-parity.md
+docs/security/key-management.md
+docs/operations/slo-sli.md
+
+deben convertirse en documentación normativa, no descriptiva solamente.
+
+LXXXVI. NUEVO DOCUMENTO: SECURITY_ARCHITECTURE.md
+
+Debe describir:
+
+Trust boundaries
+Threat actors
+Assets
+Security controls
+Identity
+Authorization
+Data boundaries
+Tool boundaries
+Crypto
+Audit
+Incident response
+LXXXVII. NUEVO DOCUMENTO: DATA_CLASSIFICATION.md
+
+Clasificación:
+
+PUBLIC
+INTERNAL
+CONFIDENTIAL
+SENSITIVE
+RESTRICTED
+CRITICAL
+
+y reglas por cada nivel.
+
+LXXXVIII. NUEVO DOCUMENTO: RETENTION_POLICY.md
+
+Definir:
+
+memoria;
+sesiones;
+logs;
+audit;
+economic records;
+identity;
+source evidence;
+telemetry.
+LXXXIX. NUEVO DOCUMENTO: INCIDENT_RESPONSE.md
+
+Definir:
+
+SEV-1
+SEV-2
+SEV-3
+SEV-4
+
+con:
+
+detect
+contain
+eradicate
+recover
+verify
+learn
+XC. NUEVO DOCUMENTO: BUSINESS_CONTINUITY.md
+
+Definir:
+
+RTO
+RPO
+backup
+restore
+failover
+regional outage
+provider outage
+database corruption
+cryptographic compromise
+XCI. NUEVO DOCUMENTO: AI_GOVERNANCE.md
+
+Debe regular:
+
+model selection;
+model changes;
+prompts;
+memory;
+tools;
+autonomy;
+human oversight;
+safety;
+evaluation;
+incident handling.
+XCII. NUEVO DOCUMENTO: MODEL_RISK_POLICY.md
+
+Cada modelo debe tener:
+
+modelId
+provider
+version
+capabilities
+risk
+context
+cost
+latency
+privacy
+data residency
+approval
+XCIII. NUEVO DOCUMENTO: TOOL_GOVERNANCE.md
+
+Regular:
+
+registration
+review
+approval
+permissions
+sandbox
+monitoring
+revocation
+deprecation
+XCIV. NUEVO DOCUMENTO: MEMORY_GOVERNANCE.md
+
+Regular:
+
+what Isabella may remember
+what it cannot remember
+retention
+deletion
+provenance
+correction
+user consent
+tenant isolation
+XCV. NUEVO DOCUMENTO: ECONOMIC_GOVERNANCE.md
+
+Definir:
+
+issuance
+balances
+ledger
+revenue
+fees
+payouts
+refunds
+disputes
+fraud
+reconciliation
+XCVI. NUEVO DOCUMENTO: SKILL_GOVERNANCE.md
+
+Definir:
+
+skill creation
+skill validation
+skill signing
+skill permissions
+skill publication
+skill monetization
+skill revocation
+XCVII. REGLAMENTO INTERNO DE ISABELLA
+
+Recomiendo crear:
+
+ISABELLA_INTERNAL_REGULATION.md
+
+Con reglas fundamentales:
+
+Isabella nunca puede concederse privilegios.
+Isabella nunca puede modificar sus propias políticas de seguridad.
+Isabella nunca puede alterar evidencia histórica.
+Isabella nunca puede cruzar tenants.
+Isabella no puede ejecutar herramientas fuera de sus capabilities.
+Isabella no puede modificar balances directamente.
+Isabella debe diferenciar hechos, inferencias, opiniones e incertidumbre.
+Isabella debe registrar acciones de alto impacto.
+Isabella debe respetar kill-switch.
+Isabella debe fail-closed ante incertidumbre de autorización.
+Isabella debe preservar provenance.
+Isabella no debe ocultar errores críticos.
+Isabella no debe presentar capacidades experimentales como certificadas.
+Isabella debe respetar retención y eliminación de memoria.
+Toda acción autónoma debe ser auditable.
+XCVIII. PRINCIPIO DE AUTORIDAD
+
+Crear una jerarquía formal:
+
+Human Governance
+       ↓
+Constitutional Policy
+       ↓
+Security Policy
+       ↓
+Tenant Policy
+       ↓
+Application Policy
+       ↓
+Agent Policy
+       ↓
+Skill Policy
+       ↓
+Tool Capability
+       ↓
+Execution
+
+Ningún nivel inferior puede sobrescribir uno superior.
+
+XCIX. CONSTITUCIÓN COGNITIVA
+
+Recomiendo crear:
+
+ISABELLA_COGNITIVE_CONSTITUTION.md
+
+Con principios como:
+
+Truthfulness
+Epistemic Humility
+Least Privilege
+Non-Deception
+Provenance
+Reversibility
+Human Oversight
+Tenant Sovereignty
+Data Minimization
+Auditability
+Fail-Closed
+C. PROTOCOLO EOCT
+
+Formalizar un protocolo operativo:
+
+Observe
+Evaluate
+Constrain
+Transact
+
+Cada operación importante:
+
+O → E → C → T → Audit
+CI. PROTOCOLO DE DECISIÓN
+
+Crear:
+
+DecisionRequest
+DecisionContext
+PolicyEvaluation
+RiskAssessment
+Decision
+Action
+Verification
+Evidence
+CII. PROTOCOLO DE AUTONOMÍA
+
+Niveles:
+
+A0 — Informational
+A1 — Recommendation
+A2 — Assisted Action
+A3 — Governed Autonomous Action
+A4 — Restricted Autonomous Action
+A5 — Emergency/System Critical
+
+Cada nivel requiere controles diferentes.
+
+CIII. PROTOCOLO DE RIESGO
+
+Crear:
+
+RiskScore
+Impact
+Likelihood
+Exposure
+Reversibility
+Confidence
+
+y:
+
+Risk = f(impact, likelihood, exposure, reversibility)
+CIV. HUMAN-IN-THE-LOOP
+
+Obligatorio para:
+
+transferencias;
+payouts;
+eliminación masiva;
+cambios de políticas;
+cambios de identidad;
+despliegues críticos;
+modificaciones de seguridad;
+acciones destructivas;
+kill-switch global recovery.
+CV. FOUR-EYES PRINCIPLE
+
+Para operaciones críticas:
+
+Operator A
++
+Approver B
+
+Nunca una sola identidad para:
+
+security policy
+financial settlement
+global kill-switch recovery
+production cryptographic key operations
+CVI. QUANTUM
+
+Archivos:
+
+src/lib/quantum/
+scripts/quantum/
+tests/quantum/
+
+Agregar:
+
+CircuitManifest
+CircuitHash
+CircuitVersion
+BackendPolicy
+ExecutionQuota
+NoiseProfile
+ResultVerification
+CostLimit
+Timeout
+CVII. QUANTUM SECURITY
+
+Nunca permitir que quantum ejecute:
+
+filesystem access
+network access
+secret access
+database writes
+
+directamente.
+
+Debe existir:
+
+Quantum Worker
+
+aislado.
+
+CVIII. QUANTUM CLAIMS
+
+Documentar:
+
+Experimental
+Simulated
+Hardware-backed
+Verified
+Production
+Certified
+
+y no mezclar categorías.
+
+CIX. MCP / EXTERNAL INTEGRATIONS
+
+Cada integración externa necesita:
+
+ConnectorManifest
+OAuth policy
+Scopes
+Data classification
+Rate limit
+Failure policy
+Timeout
+Circuit breaker
+Audit
+Revocation
+CX. CIRCUIT BREAKERS
+
+Crear circuit breakers para:
+
+model provider;
+database;
+quantum;
+social APIs;
+payments;
+voice;
+external search;
+MCP.
+
+Estados:
+
+CLOSED
+OPEN
+HALF_OPEN
+CXI. RETRIES
+
+Nunca hacer retries infinitos.
+
+Definir:
+
+maxAttempts
+backoff
+jitter
+deadline
+idempotency
+retryableErrors
+CXII. QUEUES
+
+Crear durable event infrastructure para:
+
+audit
+notifications
+payouts
+memory processing
+embedding
+claims
+automation
+analytics
+CXIII. OUTBOX
+
+Mover:
+
+eventbus-outbox.json
+
+a un patrón:
+
+DB transaction
++
+outbox table
++
+worker
++
+idempotent consumer
+CXIV. EVENT SCHEMA
+
+Crear:
+
+EventEnvelope
+
+con:
+
+eventId
+eventType
+eventVersion
+aggregateId
+tenantId
+timestamp
+producer
+correlationId
+causationId
+payload
+schemaVersion
+hash
+CXV. EVENT VERSIONING
+
+Nunca cambiar destructivamente un evento.
+
+Usar:
+
+EventType.v1
+EventType.v2
+
+y migradores.
+
+CXVI. DATA RESIDENCY
+
+Agregar metadata:
+
+region
+jurisdiction
+dataResidency
+processingLocation
+
+especialmente para infraestructura territorial/gubernamental.
+
+CXVII. PRIVACY
+
+Implementar:
+
+Consent
+Purpose
+DataSubject
+DeletionRequest
+ExportRequest
+CorrectionRequest
+ProcessingRecord
+CXVIII. TENANT SOVEREIGNTY
+
+Cada tenant debe tener:
+
+data boundary
+memory boundary
+policy boundary
+billing boundary
+audit boundary
+connector boundary
+CXIX. GOVERNANCE
+
+Crear:
+
+PolicyChangeRequest
+PolicyApproval
+PolicyDeployment
+PolicyRollback
+PolicyEvidence
+
+Toda modificación de políticas debe generar evidencia.
+
+CXX. POLICY VERSIONING
+
+Cada política:
+
+policyId
+version
+status
+author
+approver
+createdAt
+effectiveAt
+expiresAt
+hash
+signature
+CXXI. CONFIGURATION GOVERNANCE
+
+Ninguna configuración crítica debe depender exclusivamente de:
+
+.env
+
+Crear configuración declarativa y versionada.
+
+CXXII. CONFIGURATION DRIFT
+
+CI/CD debe comparar:
+
+desired configuration
+vs
+runtime configuration
+
+y alertar cualquier diferencia.
+
+CXXIII. FEATURE FLAGS
+
+Todas las flags críticas deben:
+
+expire
+be owned
+be audited
+be environment-scoped
+CXXIV. OBSERVABILITY SECURITY
+
+Crear alertas para:
+
+authorization denial spike
+cross-tenant attempts
+API key anomalies
+tool escalation
+memory poisoning
+prompt injection
+ledger mismatch
+audit chain mismatch
+kill-switch activation
+policy drift
+provider failure
+CXXV. SECURITY SCORE
+
+Crear un security posture score:
+
+Identity
+Authz
+Data
+Runtime
+Supply Chain
+AI Safety
+Economy
+Evidence
+Infrastructure
+CXXVI. SELF-DIAGNOSTIC ENGINE
+
+Crear:
+
+SystemDiagnosis
+SubsystemHealth
+SecurityHealth
+PolicyHealth
+DataHealth
+EvidenceHealth
+
+pero separar:
+
+diagnosis
+
+de:
+
+remediation
+CXXVII. HEALTH ENDPOINTS
+
+Crear:
+
+/live
+/ready
+/health
+/health/security
+/health/policy
+/health/database
+/health/queue
+/health/model
+
+Sin revelar información sensible.
+
+CXXVIII. DISASTER RECOVERY
+
+Crear pruebas reales:
+
+DB restore
+ledger restore
+audit restore
+key recovery
+provider outage
+region outage
+queue loss
+deployment rollback
+CXXIX. CHAOS ENGINEERING
+
+Agregar:
+
+database unavailable
+PDP unavailable
+model unavailable
+memory unavailable
+audit unavailable
+queue unavailable
+external connector unavailable
+
+y comprobar comportamiento fail-closed/fail-safe según el dominio.
+
+CXXX. FAIL-CLOSED MATRIX
+
+No todos los servicios deben reaccionar igual.
+
+Crear:
+
+Componente	Falla	Acción
+PDP	unavailable	DENY
+Audit	unavailable	bloquear acciones críticas
+Ledger	unavailable	DENY mutation
+Memory	unavailable	degraded
+Model	unavailable	fallback autorizado
+Quantum	unavailable	disable
+UI	unavailable	no impact backend
+CXXXI. DEGRADED MODE
+
+Crear estados:
+
+NORMAL
+DEGRADED
+RESTRICTED
+SAFE
+LOCKDOWN
+RECOVERY
+CXXXII. LOCKDOWN
+
+Durante lockdown:
+
+No payouts
+No privileged tools
+No policy changes
+No new API keys
+No autonomous remediation
+No quantum
+CXXXIII. RECOVERY
+
+Recovery requiere:
+
+incident ID
+root cause
+approval
+health verification
+policy verification
+audit verification
+rollback verification
+CXXXIV. SUPPLY CHAIN
+
+Agregar:
+
+Dependency Pinning
+SBOM
+Vulnerability Scan
+License Scan
+Secret Scan
+Container Scan
+IaC Scan
+Signature
+Provenance
+Attestation
+CXXXV. DEPENDENCY POLICY
+
+Cada dependencia crítica debe tener:
+
+version
+license
+security status
+owner
+reason
+replacement
+CXXXVI. LICENSE GOVERNANCE
+
+Crear:
+
+LICENSE_POLICY.md
+
+y CI que detecte licencias prohibidas.
+
+CXXXVII. CODE OWNERSHIP
+
+Crear:
+
+CODEOWNERS
+
+para:
+
+security
+authz
+crypto
+economy
+quantum
+infrastructure
+database
+CXXXVIII. BRANCH PROTECTION
+
+Requerir:
+
+PR
+review
+CI
+security gates
+signed commits opcionalmente
+
+para áreas críticas.
+
+CXXXIX. CHANGE MANAGEMENT
+
+Crear:
+
+CHANGE_REQUEST
+RISK
+IMPACT
+ROLLBACK
+TEST_EVIDENCE
+APPROVAL
+CXL. ARCHITECTURE DECISION RECORDS
+
+Completar ADRs para:
+
+identity
+authz
+tenant
+memory
+provider
+economy
+ledger
+quantum
+audit
+deployment
+data
+CXLI. COMPONENT STATUS
+docs/COMPONENT_STATUS.md
+
+Cambiar a una clasificación objetiva:
+
+PRODUCTION
+PRODUCTION-CONDITIONAL
+BETA
+EXPERIMENTAL
+SIMULATION
+PLACEHOLDER
+DEPRECATED
+
+Esto es crucial.
+
+CXLII. READINESS MATRIX
+
+Crear automáticamente:
+
+component
+implementation
+tests
+security
+observability
+documentation
+deployment
+status
+
+No permitir que un documento manual diga 100% cuando los tests dicen otra cosa.
+
+CXLIII. BUILD PROVENANCE
+docs/BUILD_PROVENANCE.md
+
+Agregar:
+
+commit SHA
+source repository
+branch
+builder
+workflow
+container digest
+dependency lock
+SBOM hash
+signature
+attestation
+timestamp
+CXLIV. SYSTEM OF RECORD
+docs/SYSTEM_OF_RECORD.md
+
+Debe ser normativo.
+
+Para cada dato indicar:
+
+authority
+write path
+read path
+backup
+retention
+audit
+reconciliation
+CXLV. ADAPTER PARITY
+docs/architecture/adapter-parity.md
+
+Convertirlo en test automático.
+
+Todos los adapters deben cumplir una interfaz común:
+
+health()
+capabilities()
+execute()
+timeout()
+errors()
+audit()
+CXLVI. SECURITY TEST MATRIX
+
+Crear:
+
+tests/security/
+
+con:
+
+identity/
+authorization/
+tenant/
+memory/
+tools/
+mcp/
+crypto/
+economy/
+audit/
+automation/
+quantum/
+supply-chain/
+CXLVII. AI EVALUATION
+
+Crear:
+
+evals/
+
+con datasets:
+
+truthfulness
+epistemic classification
+prompt injection
+tool selection
+policy adherence
+memory retrieval
+tenant isolation
+economic safety
+CXLVIII. MODEL REGRESSION
+
+Cada cambio de modelo debe ejecutar:
+
+benchmark
+safety suite
+epistemic suite
+tool suite
+latency
+cost
+hallucination
+CXLIX. COST GOVERNANCE
+
+Crear:
+
+TokenBudget
+InferenceBudget
+ToolBudget
+QuantumBudget
+TenantBudget
+CreatorBudget
+CL. RESOURCE GOVERNANCE
+
+Por tenant:
+
+CPU
+memory
+storage
+tokens
+requests
+tools
+quantum executions
+voice minutes
+connectors
+CLI. FAIRNESS / BIAS
+
+Agregar evaluación para:
+
+demographic bias
+territorial bias
+language bias
+source bias
+creator ranking bias
+economic recommendation bias
+CLII. EPISTEMIC HUMILITY
+
+Toda respuesta de alto riesgo debe poder producir:
+
+confidence
+evidence
+uncertainty
+limitations
+CLIII. DATA LINEAGE
+
+Crear:
+
+DataLineage
+Source
+Transformation
+Inference
+Destination
+CLIV. SOURCE TRUST
+
+Crear scoring:
+
+authority
+recency
+independence
+primary-source status
+peer-review status
+retraction status
+consensus
+CLV. CONTENT MODERATION
+
+Crear policy engine para:
+
+user content
+creator content
+memory
+external documents
+tool outputs
+generated outputs
+CLVI. OUTPUT FIREWALL
+
+Antes de devolver una respuesta sensible:
+
+PII detection
+secret detection
+credential detection
+policy check
+unsafe content check
+cross-tenant check
+CLVII. PII
+
+Crear:
+
+PIIDetector
+PIIRedactor
+PIIPolicy
+PIIAudit
+CLVIII. SECRET EXFILTRATION
+
+Probar que Isabella nunca exponga:
+
+API keys
+JWT
+cookies
+database credentials
+HSM handles
+environment variables
+internal prompts
+private keys
+CLIX. INTERNAL PROMPT GOVERNANCE
+
+Crear:
+
+PromptManifest
+PromptVersion
+PromptHash
+PromptOwner
+PromptApproval
+PromptRollback
+CLX. PROMPT INTEGRITY
+
+El prompt de sistema debe poder auditarse por:
+
+version
+hash
+source
+effective time
+CLXI. AGENT IDENTITY
+
+Cada agente/skill debería tener:
+
+agentId
+agentVersion
+capabilities
+policy
+owner
+tenant
+trustLevel
+CLXII. AGENT MEMORY
+
+No permitir que un agente automáticamente herede:
+
+all user memory
+all tenant permissions
+all tools
+
+Debe recibir un contexto explícito.
+
+CLXIII. AGENT DELEGATION
+
+Crear:
+
+DelegationToken
+DelegationChain
+DelegationDepth
+DelegationExpiry
+DelegationRevocation
+
+para evitar:
+
+agent → agent → agent → unrestricted privilege
+CLXIV. MAXIMUM DELEGATION DEPTH
+
+Por defecto:
+
+depth = 0
+
+y límites configurables.
+
+CLXV. ANTI-CONFUSED-DEPUTY
+
+Cada herramienta debe comprobar:
+
+who requested?
+who delegated?
+for which tenant?
+for which resource?
+under which policy?
+CLXVI. ECONOMIC AI SAFETY
+
+La IA no debe poder decidir unilateralmente:
+
+payout
+price
+commission
+credit
+refund
+balance adjustment
+
+Debe producir una propuesta y pasar por política.
+
+CLXVII. GOVERNANCE AI
+
+La IA puede:
+
+analyze
+simulate
+recommend
+
+pero decisiones constitucionales deben permanecer en governance.
+
+CLXVIII. FEDERATED GOVERNANCE
+
+Crear:
+
+FederationPolicy
+FederationVote
+FederationProposal
+FederationQuorum
+FederationDecision
+FederationEvidence
+CLXIX. SCAO
+
+Si Isabella será gobernada bajo SCAO:
+
+Crear módulos formales:
+
+SCAO-SEC
+SCAO-ETH
+SCAO-QC
+SCAO-EXP
+SCAO-DOC
+
+Cada uno con:
+
+mandate
+authority
+limits
+membership
+decision
+audit
+CLXX. CONSTITUTIONAL OVERRIDE
+
+Debe existir una única capa capaz de imponer:
+
+global deny
+
+pero jamás una ruta ordinaria capaz de imponer:
+
+global allow
+CLXXI. DATA DELETION
+
+Implementar:
+
+DeleteRequest
+DeletionPlan
+DeletionExecution
+DeletionEvidence
+
+incluyendo:
+
+memory
+embeddings
+cache
+indexes
+backups
+derived data
+
+según las obligaciones de retención aplicables.
+
+CLXXII. BACKUP SECURITY
+
+Backups:
+
+encrypted
+immutable
+versioned
+access-controlled
+tested
+region-aware
+audited
+CLXXIII. KEY COMPROMISE
+
+Crear protocolo:
+
+KEY_COMPROMISED
+ ↓
+REVOKE
+ ↓
+ROTATE
+ ↓
+REISSUE
+ ↓
+REVERIFY
+ ↓
+AUDIT
+CLXXIV. CERTIFICATE / SIGNATURE COMPROMISE
+
+Mismo patrón para:
+
+Cosign
+PQC
+Ed25519
+TLS
+OIDC
+CLXXV. SUPPLY-CHAIN LOCKDOWN
+
+Si el artifact:
+
+signature invalid
+SBOM missing
+provenance missing
+vulnerability threshold exceeded
+
+entonces:
+
+DEPLOY = DENY
+CLXXVI. DEPLOYMENT ATTESTATION
+
+Crear una evidencia final:
+
+DeploymentEvidence
+
+con:
+
+artifact
+digest
+commit
+tests
+SBOM
+security scan
+policy status
+approval
+deployment target
+timestamp
+CLXXVII. ZERO-TRUST CERTIFICATION PROFILE
+
+Crear:
+
+ZERO_TRUST_CONTROL_MATRIX.md
+
+Mapear controles contra:
+
+Identity
+Device
+Network
+Application
+Data
+Workload
+Telemetry
+Policy
+CLXXVIII. NIST / ISO MAPPING
+
+Crear matriz de trazabilidad hacia:
+
+NIST CSF
+NIST AI RMF
+NIST SP 800-53
+NIST Zero Trust Architecture
+ISO/IEC 27001
+ISO/IEC 42001
+OWASP ASVS
+OWASP LLM Top 10
+OWASP API Security
+SLSA
+
+Esto no significa certificación. Significa control mapping.
+
+CLXXIX. AI INCIDENT TAXONOMY
+
+Crear:
+
+AI-001 Prompt Injection
+AI-002 Tool Escalation
+AI-003 Memory Poisoning
+AI-004 Data Leakage
+AI-005 Hallucination
+AI-006 Epistemic Misclassification
+AI-007 Policy Bypass
+AI-008 Autonomous Action
+AI-009 Model Compromise
+AI-010 Economic Manipulation
+CLXXX. OBSERVABILITY OF COGNITION
+
+Crear trazas:
+
+Perceive
+Remember
+Policy Gate
+Decide
+Act
+Audit
+
+Esto permitiría que el pipeline canónico sea observable, no solamente conceptual.
+
+CLXXXI. COGNITIVE TRACE
+
+Crear:
+
+CognitiveTrace
+
+con:
+
+traceId
+input
+retrieval
+memory
+policy
+decision
+tool
+output
+evidence
+
+con redacción de datos sensibles.
+
+CLXXXII. EXPLAINABILITY
+
+Para acciones importantes:
+
+Why?
+What evidence?
+Which policy?
+Which capability?
+What uncertainty?
+What risk?
+CLXXXIII. REVERSIBILITY
+
+Cada acción debe indicar:
+
+reversible = true/false
+rollbackAction
+rollbackWindow
+CLXXXIV. TRANSACTION SIMULATION
+
+Antes de acciones críticas:
+
+dry-run
+simulation
+preview
+impact analysis
+CLXXXV. CHANGE IMPACT ANALYSIS
+
+Crear:
+
+PolicyImpactAnalyzer
+DependencyImpactAnalyzer
+TenantImpactAnalyzer
+EconomicImpactAnalyzer
+CLXXXVI. GOVERNANCE AUDIT
+
+Toda acción administrativa debe generar:
+
+who
+what
+why
+when
+before
+after
+policy
+approval
+evidence
+CLXXXVII. INTERNAL SKILLS RECOMENDADAS
+
+Crear skills nativas:
+
+Security Auditor
+Architecture Auditor
+Epistemic Researcher
+Territorial Analyst
+Economic Analyst
+Creator Monetization Advisor
+Policy Analyst
+Incident Commander
+DevSecOps Engineer
+Data Governance Officer
+Privacy Officer
+Evidence Verifier
+Quantum Researcher
+Federation Coordinator
+SCAO Secretary
+
+Cada una limitada por capabilities.
+
+CLXXXVIII. SKILL DE SEGURIDAD
+
+security-auditor debería poder:
+
+revisar configuración;
+detectar misconfigurations;
+generar findings;
+clasificar riesgo;
+recomendar remediación.
+
+Pero:
+
+no modificar producción automáticamente.
+
+CLXXXIX. SKILL DE MONETIZACIÓN
+
+Una capacidad especialmente alineada con Isabella:
+
+Creator Monetization Engine
+
+Analiza:
+
+skills
+audience
+content
+territory
+demand
+opportunities
+pricing
+channels
+conversion
+
+y genera oportunidades económicas.
+
+CXC. OPPORTUNITY ENGINE
+src/lib/creator-economy/economy-service.ts
+
+Agregar:
+
+Opportunity
+OpportunityScore
+MarketSignal
+CreatorFit
+MonetizationPath
+ExpectedValue
+Risk
+CXCI. PERSONAL ECONOMIC GRAPH
+
+Crear:
+
+Creator
+Skills
+Assets
+Audience
+Opportunities
+Transactions
+Reputation
+Trust
+CXCII. REPUTATION SYSTEM
+
+Crear:
+
+ReputationScore
+TrustScore
+EvidenceScore
+SkillScore
+TransactionScore
+CommunityScore
+
+No utilizar una puntuación única opaca.
+
+CXCIII. ANTI-GAMING
+
+Proteger rankings contra:
+
+fake engagement
+sybil accounts
+self-transactions
+bot activity
+review manipulation
+referral abuse
+CXCIV. SYBIL DEFENSE
+
+Crear:
+
+IdentityGraph
+DeviceSignals
+BehaviorSignals
+AccountAge
+TransactionPatterns
+
+sin convertirlo en vigilancia indiscriminada.
+
+CXCV. FEDERATED IDENTITY
+
+Preparar:
+
+DID
+Verifiable Credentials
+WebAuthn
+OIDC
+
+como adapters independientes.
+
+CXCVI. DIGITAL SOVEREIGNTY
+
+Crear una política que defina:
+
+what data leaves Isabella
+which provider receives it
+why
+for how long
+under which jurisdiction
+CXCVII. PROVIDER ABSTRACTION
+
+Crear:
+
+ModelProvider
+VoiceProvider
+SearchProvider
+EmbeddingProvider
+PaymentProvider
+StorageProvider
+QuantumProvider
+
+todos detrás de interfaces.
+
+CXCVIII. PROVIDER HEALTH
+
+Cada provider:
+
+health
+latency
+cost
+availability
+privacy
+region
+trust
+CXCIX. FAILOVER
+
+Nunca fallback automático hacia un proveedor no autorizado.
+
+Debe existir:
+
+ProviderPolicy
+CC. FINAL: REORGANIZACIÓN PROPUESTA
+
+La estructura final que recomiendo para Isabella es aproximadamente:
+
+isabella-mexa-rh/
+│
+├── apps/
+│   ├── web/
+│   ├── api/
+│   └── admin/
+│
+├── core/
+│   ├── identity/
+│   ├── authorization/
+│   ├── governance/
+│   ├── cognition/
+│   ├── memory/
+│   ├── evidence/
+│   ├── economy/
+│   └── federation/
+│
+├── agents/
+│   ├── runtime/
+│   ├── skills/
+│   ├── delegation/
+│   └── policies/
+│
+├── tools/
+│   ├── registry/
+│   ├── sandbox/
+│   ├── mcp/
+│   └── capabilities/
+│
+├── providers/
+│   ├── tamvai/
+│   ├── voice/
+│   ├── search/
+│   ├── payments/
+│   └── quantum/
+│
+├── infrastructure/
+│   ├── kubernetes/
+│   ├── docker/
+│   ├── observability/
+│   └── supply-chain/
+│
+├── security/
+│   ├── crypto/
+│   ├── policies/
+│   ├── redteam/
+│   └── incident-response/
+│
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   ├── e2e/
+│   ├── security/
+│   ├── redteam/
+│   ├── chaos/
+│   └── property/
+│
+├── evals/
+│   ├── epistemic/
+│   ├── safety/
+│   ├── agents/
+│   └── models/
+│
+└── docs/
+    ├── architecture/
+    ├── security/
+    ├── governance/
+    ├── economy/
+    ├── memory/
+    ├── api/
+    ├── operations/
+    └── compliance/
+Prioridad real
+
+Si hay que transformar todo este inventario en ejecución, yo lo ordenaría así:
+
+Fase	Objetivo	Resultado
+W0	Purga de estado + secretos + Git history	Repo limpio
+W1	Identity + Tenant + Authz	Zero Trust base
+W2	Policy canonicalization	PDP único
+W3	Memory governance	MNEMOSYNE segura
+W4	ORION sandbox	Agent execution segura
+W5	Economy + double-entry	Economía confiable
+W6	Evidence + cryptography	Auditabilidad fuerte
+W7	CI/CD + supply chain	Builds verificables
+W8	Observability + SLO	Operabilidad
+W9	Red Team + Chaos	Resiliencia
+W10	Governance + constitutional layer	Control soberano
+W11	Quantum/PQC hardening	Research → controlled production
+W12	Independent assessment	Enterprise certification readiness
+El punto más importante
+
+No recomendaría añadir las 200+ capacidades anteriores directamente al repositorio actual.
+
+Primero hay que establecer una arquitectura de autoridad:
+
+                 ISABELLA CONSTITUTION
+                         │
+                  GOVERNANCE PLANE
+                         │
+                  SECURITY KERNEL
+                         │
+                   POLICY ENGINE
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+        COGNITIVE KERNEL       EVIDENCE KERNEL
+              │                     │
+       ┌──────┼──────┐              │
+       │      │      │              │
+    MEMORY  AGENTS  SKILLS           │
+       │      │      │              │
+       └──────┼──────┘              │
+              │                     │
+           ORION TOOLS              │
+              │                     │
+        ECONOMIC KERNEL              │
+              │                     │
+              └──────────┬──────────┘
+                         │
+                    ATLAS MESH
+                         │
+                   FEDERATIONS
+
+Ese cambio es más importante que agregar cien endpoints nuevos.
+
+Mi recomendación arquitectónica final es que isabella-mexa-rh pase ahora por una fase denominada ATLAS HARDENING / RH-FOUNDATION, donde primero se corrijan las fronteras de autoridad, persistencia, identidad, autorización, economía, ejecución y evidencia. Después de eso sí conviene construir las nuevas skills, capacidades económicas, federaciones y autonomía avanzada.
+
+La rama ya tiene suficientes piezas para convertirse en un núcleo cognitivo real; el riesgo actual es seguir agregando capacidades sobre fronteras de confianza que todavía necesitan consolidación.

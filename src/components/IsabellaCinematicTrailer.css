@@ -202,6 +202,16 @@
   }
 }
 
+/* Capas duales de la intro inmersiva (2D de fondo, 3D encima) */
+.isabella-trailer__canvas--2d {
+  z-index: 1;
+}
+
+.isabella-trailer__canvas--3d {
+  z-index: 2;
+  opacity: 0.9;
+}
+
 @media (max-width: 640px) {
   .isabella-trailer__readout {
     font-size: 9px;

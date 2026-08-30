@@ -15,7 +15,7 @@ import { Header } from "./components/Header";
 import { GlobalFooter } from "./components/Footer/GlobalFooter";
 import { ShortcutToast } from "./components/Shortcuts/ShortcutToast";
 import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
-import { IsabellaCinematicTrailer } from "./components/IsabellaCinematicTrailer";
+import { IsabellaImmersiveTrailer } from "./components/IsabellaImmersiveTrailer";
 
 /*
  * ============================================================================
@@ -561,11 +561,11 @@ function MainContent() {
   };
 
   if (!introDone) {
-    return <IsabellaCinematicTrailer onComplete={completeIntro} />;
+    return <IsabellaImmersiveTrailer onComplete={completeIntro} />;
   }
 
   if (cinematicIntroOpen) {
-    return <IsabellaCinematicTrailer onComplete={closeCinematicIntro} />;
+    return <IsabellaImmersiveTrailer onComplete={closeCinematicIntro} />;
   }
 
   return (

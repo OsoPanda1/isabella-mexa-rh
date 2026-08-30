@@ -13,6 +13,28 @@ export type { PromptLayer } from "./orchestrator/prompt-builder";
 export { compressContext } from "./context/context-compressor";
 export type { CompressedContext } from "./context/context-compressor";
 
+export {
+  createRequestFlowContext,
+  deriveChildFlow,
+  createCorrelationContext,
+  childCorrelationSpan,
+  createPrincipalContext,
+  createTenantContext,
+  tenantIdsEqual,
+  assertTenantMatch,
+  createPolicyDecisionContext,
+} from "./context/index";
+
+export type {
+  RequestFlowContext,
+  RequestFlowInput,
+  CorrelationContext,
+  CorrelationInput,
+  PrincipalContext,
+  TenantContext,
+  PolicyDecisionContext,
+} from "./context/index";
+
 export { createPlan, getPlan, listPlans, activatePlan, executePlanStep, deletePlan } from "./planner/planner";
 export type { Plan, PlanStep, PlanStatus, StepStatus, RecoveryStrategy } from "./planner/planner";
 
