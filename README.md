@@ -2,7 +2,7 @@
 
 > **Infraestructura Cognitiva Territorial Soberana** · Real del Monte, Hidalgo, México
 > **Autor & Arquitecto:** Edwin Oswaldo Castillo Trejo (*Anubis Villaseñor*) · ORCID [0009-0008-5050-1539](https://orcid.org/0009-0008-5050-1539)
-> **Versión:** `v5.4.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 267 tests · ~80% prod`
+> **Versión:** `v5.4.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 280 tests · ~81% prod`
 
 ---
 
@@ -100,6 +100,14 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
   Los hijos derivan del padre (`deriveChildFlow`) sin re-autenticar. Se
   complementa con, y no duplica, `src/lib/authz/` (motor PDP). Tests en
   `tests/security/request-flow-context.test.ts`.
+- **W2 — Gobernanza de integraciones externas (MCP, CIX):** nuevo marco
+  `src/lib/mcp/` que valida toda llamada a un conector externo en cascada:
+  revocación → credencial OAuth → scope → clasificación de datos → rate limit
+  → circuit breaker (CLOSED/OPEN/HALF_OPEN) → timeout → política de fallo
+  (fail-fast/fallback/quarantine) → auditoría. Cada conector se matricula con
+  un `ConnectorManifest` que declara de forma estática identidad, scopes
+  granulares (rechaza "*"), data classes permitidas y contrato de red. Tests
+  en `tests/security/mcp-connector-governance.test.ts`.
 - **Despliegue de dependencias:** `pnpm approve-builds` para scripts nativos
   (better-sqlite3, prisma, esbuild); `pnpm-workspace.yaml` excluye `tsx`/`zod`
   de la política de `minimumReleaseAge` (dependencias legítimas ya fijadas en
@@ -272,9 +280,9 @@ medidos). Peso por criticidad.
 | Dimensión | % | Peso |
 |---|---|---|
 | Compilación y tipado (`tsc` 0 errores, `vite build` OK) | 95 | 10% |
-| Pruebas automatizadas (267 frontend + 5 JDR, todas verdes) | 80 | 12% |
+| Pruebas automatizadas (280 frontend + 5 JDR, todas verdes) | 81 | 12% |
 | Seguridad de dependencias (npm audit 0; Maven pendiente de scan) | 88 | 12% |
-| AuthN/AuthZ Zero-Trust (PDP externo, ABAC, tenant, contexto transitivo W1, kill-switch) | 88 | 14% |
+| AuthN/AuthZ Zero-Trust (PDP externo, ABAC, tenant, contexto transitivo W1, gobernanza MCP CIX, kill-switch) | 89 | 14% |
 | Honestidad de datos (etiquetas DEMO, sin falsificar "verificado") | 92 | 10% |
 | Resiliencia/runtime (rate-limit, cold-start, circuit-breaker, intro adaptativa) | 84 | 10% |
 | Persistencia durable (ledger SIMULADO; JDR no cableado al FE) | 55 | 12% |

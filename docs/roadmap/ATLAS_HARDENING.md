@@ -88,6 +88,34 @@ Pendiente:
 
 ## W2–W12 (referencia al manual)
 
+## W2 — MCP / External Integrations Governance (CIX)
+
+Implementado en `src/lib/mcp/` (marco genérico de gobernanza de conectores):
+- `connector-manifest.ts` — ConnectorManifest validado (identidad, kind, scopes
+  granulares —rechaza "*"→, allowedDataClasses, contrato de red, failure policy,
+  timeout, rate limit, umbral de circuito, auth OAuth, revoked).
+- `oauth-policy.ts` — matriculación de credencial OAuth (solo digest, nunca el
+  secreto), expiración, rotación y revocación.
+- `scopes.ts` — verificación granular de scope (manifest ∪ scope otorgado en el
+  request).
+- `registry.ts` — decisión en cascada por llamada: revocación → credencial →
+  scope → data classification → rate limit → circuit breaker (CLOSED/OPEN/
+  HALF_OPEN) → timeout → failure policy (fail-fast/fallback/quarantine) →
+  auditoría in-memory (persistencia durable en CXIII).
+- `index.ts` — barril público.
+- Tests: `tests/security/mcp-connector-governance.test.ts` (las 10 exigencias de
+  la sección CIX del manual).
+
+Pendiente:
+- [ ] Cablear conectores reales (Stripe MCP, social, search, voice, DB, model
+      provider) mediante este marco; registrarlos en `server.ts`.
+- [ ] CX — aplicar `DistributedCircuitBreaker` de `src/platform/resilience` a
+      cada categoría (model provider, database, quantum, social, payments,
+      voice, search, MCP).
+- [ ] CXI — helper de retries con backoff/jitter/deadline/idempotencia.
+
+## W2–W12 (referencia al manual)
+
 - **CIX** MCP: ConnectorManifest, OAuth, scopes, rate-limit, circuit breaker,
   audit, revocation.
 - **CX** circuit breakers CLOSED/OPEN/HALF_OPEN; **CXI** retries
