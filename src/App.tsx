@@ -15,7 +15,7 @@ import { Header } from "./components/Header";
 import { GlobalFooter } from "./components/Footer/GlobalFooter";
 import { ShortcutToast } from "./components/Shortcuts/ShortcutToast";
 import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
-import { IsabellaImmersiveTrailer } from "./components/IsabellaImmersiveTrailer";
+import { IsabellaCinematicExperience } from "./components/Welcome/IsabellaCinematicExperience";
 
 /*
  * ============================================================================
@@ -126,12 +126,6 @@ const QuantumMeshDashboard = lazy(
  * Los modales no bloquean el primer bundle.
  * Se importan al abrirse, no antes.
  */
-const IsabellaWelcomeModal = lazyNamed(
-  () => import("./components/Welcome/IsabellaWelcomeModal"),
-  "IsabellaWelcomeModal"
-);
-
-// (IsabellaOnboardingFlow se mantiene como componente opcional; el intro gate usa IsabellaCinematicTrailer)
 const AtlasLanguagePage = lazyNamed(() => import("./components/Pages/AtlasLanguagePage"), "AtlasLanguagePage");
 const QuantumMeshPage = lazyNamed(() => import("./components/Pages/QuantumMeshPage"), "QuantumMeshPage");
 const LedgerPage = lazyNamed(() => import("./components/Pages/LedgerPage"), "LedgerPage");
@@ -561,11 +555,23 @@ function MainContent() {
   };
 
   if (!introDone) {
-    return <IsabellaImmersiveTrailer onComplete={completeIntro} />;
+    return (
+      <IsabellaCinematicExperience
+        isOpen
+        onEnter={completeIntro}
+        onClose={completeIntro}
+      />
+    );
   }
 
   if (cinematicIntroOpen) {
-    return <IsabellaImmersiveTrailer onComplete={closeCinematicIntro} />;
+    return (
+      <IsabellaCinematicExperience
+        isOpen
+        onEnter={closeCinematicIntro}
+        onClose={closeCinematicIntro}
+      />
+    );
   }
 
   return (
@@ -635,8 +641,10 @@ function MainContent() {
 
       <Suspense fallback={null}>
         {isWelcomeOpen ? (
-          <IsabellaWelcomeModal
-            {...{ isOpen: isWelcomeOpen, onClose: closeWelcomeModal } as any}
+          <IsabellaCinematicExperience
+            isOpen={isWelcomeOpen}
+            onClose={closeWelcomeModal}
+            enableCinematic={false}
           />
         ) : null}
 

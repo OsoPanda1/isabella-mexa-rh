@@ -2,7 +2,7 @@
 
 > **Infraestructura Cognitiva Territorial Soberana** · Real del Monte, Hidalgo, México
 > **Autor & Arquitecto:** Edwin Oswaldo Castillo Trejo (*Anubis Villaseñor*) · ORCID [0009-0008-5050-1539](https://orcid.org/0009-0008-5050-1539)
-> **Versión:** `v5.4.0` · **Estado:** `Endurecida (0 vulns pnpm) · JDR verde · 280 tests · ~81% prod`
+> **Versión:** `v5.4.1` · **Estado:** `Endurecida (0 vulns pnpm) · lint limpio · 303 tests · build OK`
 
 ---
 
@@ -17,16 +17,16 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
 | Runtime frontend (Vite + React 19) | **Real** | SPA compilada con `vite build`. |
 | Servidor Express / API Vercel | **Real** | `server.ts` + `api/[...path].ts`. |
 | Autorización externalizada (PDP `authz-runtime`) | **Real** | Sidecar Python fail-closed; ver abajo. |
-| Métricas de módulos cognitivos | **Parcial** | Alimentadas por `/api/quantum/mesh-status` cuando existe; en su defecto valores semilla locales. |
-| Ledger / BookPI (bloques, hashes) | **SIMULADO** | `src/components/Traceability/*` y `src/components/Admin/LedgerInspector.tsx` renderizan conjuntos de demostración. No hay servicio durable de ledger cableado en este repo. |
+| Motor cognitivo Alpha/Beta (`dual-kernel`) | **Real** | Pipeline local soberano de razonamiento; ver sección "Motor cognitivo". |
+| Metadatos de sesión / contexto de request transitivo | **Real** | `src/core/context/*` W1, tenancy con comparación tiempo-constante (ADR-0003). |
+| Economía / Wallet | **Prototipo** | En memoria; idempotente por `eventId`, invariante de doble entrada. Sin dinero real. |
+| Ledger / BookPI (bloques, hashes) | **SIMULADO** | `src/components/Traceability/*` renderizan conjuntos de demostración etiquetados `DEMO`. No hay servicio durable de ledger cableado en este repo. |
 | Heatmap de actividad | **SIMULADO** | `src/components/Dashboard/ActivityHeatmap.tsx` usa datos de ejemplo. |
 | Sesión de agente (`isabella-agent-sdk`) | **SIMULADO** | `mockSession` como fallback cuando no hay sesión real. |
 | Atestación TEE / HSM | **SIMULADO** | `automation/mesh.ts`, `automation/registry.ts` indican `MOCK — no conectado a SGX/TrustZone/SEV real`. |
 | Criptografía Post-Quantum (ML-KEM/ML-DSA) | **Lab-only** | Requiere `FEATURE_LAB_MODE=true`; en producción se omite, no se falsifica. |
-| Telemetría cinemática del trailer | **SIMULADA y etiquetada** | `IsabellaCinematicTrailer` declara `SIMULATION MODE` y `telemetry: SIMULATED` por diseño. |
-| Intro inmersiva (WebGL 3D + canvas 2D + audio) | **Real** | `ImmersiveScene` + calidad adaptativa (low/medium/high) por capacidad del dispositivo; audio posicional solo tras gesto del usuario. |
-| Contexto de request transitivo (correlación/tenant/principal/policy) | **Real** | `src/core/context/*` W1, tenancy con comparación tiempo-constante (ADR-0003). |
-| Economía / Wallet | **Prototipo** | En memoria; idempotente por `eventId`, invariante de doble entrada, máquina de estados de pago. Sin dinero real. |
+| Telemetría cinemática de la experiencia | **SIMULADA y etiquetada** | El banner `SIMULATION MODE` se declara de forma explícita por diseño. |
+| Intro inmersiva (WebGL 3D + canvas 2D + audio) | **Real** | `ImmersiveScene` + calidad adaptativa (low/medium/high); audio posicional solo tras gesto del usuario. |
 
 > Ningún dato se presenta en la UI como "verificado"/"immutable"/"live" sin una
 > verificación real. Los hashes `sha256` de ledger y el estado de enclave
@@ -35,87 +35,86 @@ este README separa explícitamente lo **real/verificado** de lo **simulado/demo*
 
 ---
 
-## Endurecimiento reciente (esta revisión)
+## Endurecimiento reciente (v5.4.1 — esta revisión)
 
-- **Seguridad de dependencias (npm):** se añadieron `overrides` en
-  `package.json` para cerrar las alertas de Dependabot de severidad alta:
-  - `uuid = "^11.1.1"` → cierra **CVE-2026-41907** (escritura fuera de rango en
-    `uuid` v3/v5/v6), introducida de forma transitiva por `statsig-node-lite`.
-  - `path-to-regexp = "^6.3.0"` → cierra **CVE-2024-45296** (ReDoS por
-    backtracking en rutas), presente de forma transitiva en `@vercel/node`.
-  Tras tirar estos cambios ejecuta `pnpm install` para regenerar
-  `pnpm-lock.yaml`. Resultado actual: **`pnpm audit` → 0 vulnerabilidades**.
-- **Latencia (near-zero):** el ticker de *uptime* global ya no usa `setState`;
-  pasó a un `useRef` + `setInterval`, de modo que el contexto de Crown ya no
-  re-renderiza toda la app cada segundo. `systemUptimeSeconds` se expone vía
-  `uptimeRef.current` solo en `executeCommand`.
-- **Código muerto:** se eliminó el `lazy`-import de `IsabellaOnboardingFlow` en
-  `App.tsx` (definido pero nunca renderizado). El intro gate usa
-  `IsabellaCinematicTrailer`.
-- **Etiquetado DEMO:** `LedgerInspector`, `BookPITab`, `ActivityHeatmap` y
-  `Admin/LedgerInspector` ahora muestran un banner `DEMO` explícito sobre datos
-  de demostración.
-- **Coherencia Vercel:** `api/[...path].ts` delega 100% de las peticiones al
-  `app` Express de `server.ts`; `vite.config.ts` define `VITE_PUBLIC_APP_URL`
-  por defecto a `""`; `vercel.json` usa `maxDuration: 55`.
-- **Módulo JDR (Java/Spring Boot):** `mvn -B verify` compila y pasa sus
-  pruebas (5 tests: idempotencia y contexto de tenant). El servicio queda
-  *verde* localmente; ver sección "Módulo JDR" para criterios de salida a
-  producción.
-- **Corrección de build en Vercel (migración a pnpm):** el despliegue fallaba
-  en `npm ci` con `lock file's framer-motion@12.43.0 does not satisfy
-  framer-motion@13.1.1` porque `package-lock.json` quedó desincronizado con
-  `package.json` (que pide `framer-motion@^13.1.1`). Se resolvió usando el
-  gestor correcto del proyecto (**pnpm**, cuyo `pnpm-lock.yaml` ya resolvía
-  `framer-motion@13.1.1`): `vercel.json` ahora usa `installCommand: pnpm install`,
-  se eliminó el `package-lock.json`, y `Dockerfile`, GitHub Actions y scripts
-  se migraron a pnpm (`--frozen-lockfile`). Ver
-  `docs/adr/0001-package-manager.md` (v2.0.0).
+### Seguridad de dependencias (18 vulns → 0)
 
-> **Para verificar antes de desplegar (en tu máquina, el agente no corre
-> node/tsc/vite):** `pnpm install && pnpm run verify` (lint + tests + build +
-> `pnpm audit` en 0 vulns). El módulo JDR se verifica aparte con
-> `cd jdr-generator/api && mvn -B verify` (5 tests). Luego `git push origin main`.
+Se detectaron **18 vulnerabilidades de producción** (`pnpm audit --prod`) con
+6 high, 10 moderate y 2 low, introducidas de forma transitiva por
+`@google/genai → @modelcontextprotocol/sdk` (hono, ajv/fast-uri, express), por
+`prisma` (ajv/fast-uri, deepmerge-ts) y por `@vercel/analytics · speed-insights`
+(next → postcss → nanoid), entre otras.
+
+**Causa raíz de la demora:** en **pnpm v10/v11 los `overrides` se declaran en
+`pnpm-workspace.yaml`**, no en `package.json`. Los `overrides` puestos solo en
+`package.json` se ignoran silenciosamente (por eso `pnpm install` decía
+"Already up to date"). Se movieron los overrides a `pnpm-workspace.yaml`,
+se regeneró el `pnpm-lock.yaml` y el audit quedó en **0 vulnerabilidades**.
+
+Overrides aplicados (en `pnpm-workspace.yaml`):
+`undici ^7.14.0`, `ajv ^8.18.0`, `uuid ^11.1.1`, `path-to-regexp ^6.3.0`,
+`fast-uri ^3.1.5`, `ip-address ^10.3.1`, `nanoid ^3.3.18`,
+`deepmerge-ts ^8.0.0`, `hono >=4.12.34`, `@hono/node-server ^1.19.15`,
+`body-parser ^2.3.0`.
+
+Resultado: **`pnpm audit --prod` → "No known vulnerabilities found"**.
+
+### Nuevo componente unificado: `IsabellaCinematicExperience`
+
+Se reemplazaron **cuatro** componentes de entrada superpuestos por **uno
+solo**:
+- ✅ **`src/components/Welcome/IsabellaCinematicExperience.tsx`** (nuevo) —
+  unifica el protocolo de entrada: *welcome* (pestañas Genesis / Manifiesto /
+  Capacidades / Iniciadores), *cinematic*, *immersive* (hook `useImmersiveScene`
+  sobre WebGL + audio) y *onboarding* en un único flujo controlado desde
+  `App.tsx`.
+- 🗑️ **Eliminados** (obsoletos): `Welcome/IsabellaCinematicTrailer.tsx`,
+  `Welcome/IsabellaWelcomeModal.tsx`, `IsabellaCinematicTrailer.tsx`,
+  `IsabellaImmersiveTrailer.tsx`, `IsabellaOnboardingFlow.tsx`.
+
+### Refuerzo del hook de escena (`ImmersiveScene` / `useImmersiveScene`)
+
+- `ImmersiveScene` ahora expone `mute()` / `unmute()` y el getter `elapsedMs`;
+  `getStatus()` devuelve también `muted`.
+- `useImmersiveScene` adopta la firma declarativa por objeto
+  `{ canvas2DRef, canvas3DRef, enabled, enableAudio, durationMs }` con
+  `RefObject<HTMLCanvasElement | null>`, `maxPixelRatio: 1.75` y
+  `targetFps: 60`.
+
+### Verificación completa verde
+
+- `tsc --noEmit` (lint) — 0 errores.
+- `pnpm test` — **303 tests** (31 archivos), todas verdes.
+- `pnpm run build` — Vite + esbuild OK (warnings `import.meta` en formato CJS
+  preexistentes, no bloqueantes).
+- `pnpm audit --prod` — 0 vulnerabilidades.
 
 ---
 
-## Endurecimiento actual (v5.4.0)
+## Motor cognitivo Alpha/Beta (dual-kernel)
 
-- **Intro cinematográfica evolucionada:** nuevo motor `ImmersiveScene` (WebGL
-  3D + capa 2D twinkle + audio posicional) con calidad adaptativa
-  (`detectQuality`: low/medium/high según devicePixelRatio y GPU), pausa por
-  tab oculta, recuperación de pérdida de contexto WebGL y respeto a
-  `prefers-reduced-motion`. Se integra en `App.tsx` vía `IsabellaImmersiveTrailer`
-  en ambos gates de entrada; el trailer clásico queda como fallback.
-- **W0 — Higiene de entorno y CI:** `.gitignore` ampliado (`.env*`, `*.db*`,
-  `dist/`, `.isabella-*`); `.env` raíz neutralizado (ignorado); `prisma7.config.ts`
-  apunta a `.env.local`; `DIRECT_URL` añadido al contrato de entorno
-  (`check-env.ts` · `.env.example`); nuevo workflow
-  `.github/workflows/ci.yml` con jobs `verify` (check:env+lint+test+build) y
-  `hygiene` (veta `.env`/`*.db*` trackeados).
-- **W1 — Contexto de request cero confianza (transitivo):** en
-  `src/core/context/`, nuevos `correlation-context`, `principal-context`,
-  `tenant-context` (comparación de tenant **tiempo-constante**) y
-  `policy-context` (fail-closed), compuestos por `createRequestFlowContext`.
-  Los hijos derivan del padre (`deriveChildFlow`) sin re-autenticar. Se
-  complementa con, y no duplica, `src/lib/authz/` (motor PDP). Tests en
-  `tests/security/request-flow-context.test.ts`.
-- **W2 — Gobernanza de integraciones externas (MCP, CIX):** nuevo marco
-  `src/lib/mcp/` que valida toda llamada a un conector externo en cascada:
-  revocación → credencial OAuth → scope → clasificación de datos → rate limit
-  → circuit breaker (CLOSED/OPEN/HALF_OPEN) → timeout → política de fallo
-  (fail-fast/fallback/quarantine) → auditoría. Cada conector se matricula con
-  un `ConnectorManifest` que declara de forma estática identidad, scopes
-  granulares (rechaza "*"), data classes permitidas y contrato de red. Tests
-  en `tests/security/mcp-connector-governance.test.ts`.
-- **Despliegue de dependencias:** `pnpm approve-builds` para scripts nativos
-  (better-sqlite3, prisma, esbuild); `pnpm-workspace.yaml` excluye `tsx`/`zod`
-  de la política de `minimumReleaseAge` (dependencias legítimas ya fijadas en
-  el lockfile).
+Isabella responde **sin depender de un proveedor externo obligatorio** (raíz:
+`GEMINI_API_KEY` no configurada): el razonamiento se ejecuta en el **Dual
+Hexagonal Kernel** local (`ISABELLA-DHK-V1.0`), soberano y gobernado.
 
-> **Hoja de ruta de endurecimiento** (W0–W12) en
-> `docs/roadmap/ATLAS_HARDENING.md`: CIX (MCP), circuit breakers, retries,
-> colas durables, outbox, quantum, Braintrust y Stripe por webhook verificado.
+```
+intención → Alpha (comprende, investiga, propone) → propuesta → Beta (autentica, gobierna, ejecuta, verifica) → respuesta
+```
+
+- **Alpha** (`src/lib/cognition/alpha/`): `perception`, `context`, `memory`,
+  `research`, `hypothesis`, `proposal`.
+- **Beta** (`src/lib/cognition/beta/`): `identity`, `classification`, `risk`,
+  `policy`, `capability`, `verification`.
+- **Coordinador** (`src/lib/cognition/dual-kernel.ts` + `index.ts`): orquesta el
+  pipeline con contratos tipados (`contracts.ts`), evidencia, provenance,
+  decisión CROWN (`CrownDecision`) y telemetría.
+- Provider `isabella-cognition` + fallback enriquecido en
+  `src/lib/isabella-inference-engine.ts`.
+- Tests: `tests/cognition/dual-kernel.test.ts` (23 tests).
+
+El motor **no** dependía de Gemini para responder: sus contratos contemplan
+modos `deliberate` / `quick` y estados de operación auditables. Gemini (cuando
+se configura) refina, pero el núcleo cognitivo funciona en local.
 
 ---
 
@@ -125,7 +124,7 @@ Isabella Villaseñor AI es un sistema operativo cognitivo gobernado y una
 plataforma agéntica descentralizada con cinco módulos cognitivos
 (**ISA**, **SOPHIA**, **ORION**, **ARGUS**, **CROWN_GATEWAY**) orquestados por
 la capa C.R.O.W.N., con supervisión Zero-Trust y un portal de entrada
-cinemático (`IsabellaCinematicTrailer`).
+cinemático unificado (`IsabellaCinematicExperience`).
 
 ---
 
@@ -136,9 +135,8 @@ cinemático (`IsabellaCinematicTrailer`).
 │  Cliente SPA (Vite + React 19 + TypeScript strict)                    │
 │  • src/main.tsx · index.html                                           │
 │  • Estado central: src/context/CrownContext.tsx                       │
-│  • Intro inmersiva: src/components/IsabellaImmersiveTrailer.tsx       │
-│    (ImmersiveScene: WebGL 3D + capa 2D + audio)                       │
-│  • Portal cinemático (fallback): IsabellaCinematicTrailer.tsx         │
+│  • Portal de entrada unificado: IsabellaCinematicExperience.tsx        │
+│    (ImmersiveScene: WebGL 3D + capa 2D + audio + welcome + onboarding) │
 └───────────────────────────┬──────────────────────────────────────────┘
                             │  HTTP / JSONL
 ┌───────────────────────────▼──────────────────────────────────────────┐
@@ -146,6 +144,7 @@ cinemático (`IsabellaCinematicTrailer`).
 │  • Firewall de peticiones, rate limiting, tipado                       │
 │  • Módulos: ISA / SOPHIA / ORION / ARGUS / CROWN                       │
 │  • Contexto de request transitivo: src/core/context/* (W1)             │
+│  • Motor cognitivo dual Alpha/Beta: src/lib/cognition/*                │
 │  • Persistencia: store-authority (Postgres > SQLite > memoria/JSON)    │
 └───────────────────────────┬──────────────────────────────────────────┘
                             │  autorización externalizada (fail-closed)
@@ -183,29 +182,11 @@ La clave pública Ed25519 nativa se exporta (bajo
 
 ---
 
-## Mejoras operacionales aplicadas en esta revisión
-
-- **Eliminación de datos engañosos:** se removió el hash `sha256` de cadena
-  vacía (`e3b0c442…`) presentado como digest inmutable del ledger, el estado
-  `cryptographicEnclave: "verified"` (ahora `unavailable` en local) y los
-  porcentajes `99.98%` / `99.85%` hardcodeados en `argus-scan` y en el motor
-  de inferencia (reemplazados por autoevaluación local honesta).
-- **Resiliencia Vercel:** import dinámico/cacheado del servidor Express en el
-  handler serverless.
-- **Portal cinemático:** `IsabellaCinematicTrailer` como compuerta de entrada,
-  con `prefers-reduced-motion`, CTA siempre visible y telemetría etiquetada
-  como `SIMULATED`.
-- **Endurecimiento previo (P0):** entrega de JWT solo en cookie HttpOnly;
-  wallet idempotente; TLS a Postgres con `rejectUnauthorized`; SSOT en
-  `store-authority.ts`; PDP ABAC fail-closed.
-
----
-
 ## Gestor de paquetes y scripts
 
 > El proyecto usa **pnpm** como gestor canónico de dependencias
-> (`pnpm-lock.yaml`). La versión queda fijada por `packageManager` en
-> `package.json`. Ver `docs/adr/0001-package-manager.md` (v2.0.0).
+> (`pnpm-lock.yaml`). **Importante:** los `overrides` residen en
+> `pnpm-workspace.yaml` (pnpm v10/11), no en `package.json`.
 
 ```bash
 pnpm install --frozen-lockfile   # instalación determinista contra pnpm-lock.yaml
@@ -217,11 +198,11 @@ pnpm test               # vitest run
 pnpm run verify         # lint && test && build
 pnpm run check:env      # valida el entorno contra el contrato
 pnpm run smoke          # smoke test (scripts/smoke.mjs)
+pnpm audit --prod       # auditoría de seguridad de producción (0 vulns esperado)
 ```
 
 > Nota: `pnpm run quality` **no** existe en este repo. Usa `pnpm run verify`.
-> (El `AGENTS.md` del workspace padre describe un stack Next.js distinto; este
-> repositorio es Vite + Express y sus scripts son los de arriba.)
+> El lint es `tsc --noEmit` (no hay ESLint configurado).
 
 ---
 
@@ -235,6 +216,9 @@ pnpm run smoke          # smoke test (scripts/smoke.mjs)
 - `FEATURE_LAB_MODE` — habilita PQC experimental (no para producción).
 - `SESSION_SECRET` / secretos de firma — ver `src/lib/env.ts` (placeholders
   como `changeme`/`dev-secret` son rechazados en validación).
+- `GEMINI_API_KEY` — **opcional.** Gemini refina la salida del motor
+  cognitivo local; no es requisito para que Isabella responda (el Dual Kernel
+  Alpha/Beta funciona en local).
 
 ---
 
@@ -243,13 +227,12 @@ pnpm run smoke          # smoke test (scripts/smoke.mjs)
 Para cumplir "datos reales totales" falta cablear servicios backend que en
 este repo no existen aún. Ubicaciones exactas:
 
-- `src/components/Ledger/IsabellaLedgerConsole.tsx` — ledger en modo demo con `origin:"demo"` etiquetado y verificador estructural (`verifyLedger`). `src/components/Traceability/LedgerInspector.tsx` y `src/components/Admin/LedgerInspector.tsx` re-exportan el mismo componente.
-- `src/components/Traceability/BookPITab.tsx` — `MOCK_BLOCKS`
-- `src/components/Admin/LedgerInspector.tsx` — re-exporta `IsabellaLedgerConsole` (ledger demo etiquetado; ya sin `MOCK_LEDGER`)
-- `src/components/Dashboard/ActivityHeatmap.tsx` — `mockData`
-- `src/lib/isabella-agent-sdk.ts` — `mockSession`
-- `src/lib/automation/mesh.ts`, `src/lib/automation/registry.ts` — atestación TEE mock
-- `src/lib/isabella-crown.ts` — firmas PQC stub
+- `src/components/Ledger/IsabellaLedgerConsole.tsx` — ledger en modo demo con `origin:"demo"` etiquetado y verificador estructural (`verifyLedger`).
+- `src/components/Traceability/BookPITab.tsx` — `MOCK_BLOCKS`.
+- `src/components/Dashboard/ActivityHeatmap.tsx` — `mockData`.
+- `src/lib/isabella-agent-sdk.ts` — `mockSession`.
+- `src/lib/automation/mesh.ts`, `src/lib/automation/registry.ts` — atestación TEE mock.
+- `src/lib/isabella-crown.ts` — firmas PQC stub.
 
 Cada uno debe sustituirse por un fetch a su endpoint real (ledger service,
 metrics service, session service) o, mientras tanto, etiquetarse
@@ -280,8 +263,8 @@ medidos). Peso por criticidad.
 | Dimensión | % | Peso |
 |---|---|---|
 | Compilación y tipado (`tsc` 0 errores, `vite build` OK) | 95 | 10% |
-| Pruebas automatizadas (280 frontend + 5 JDR, todas verdes) | 81 | 12% |
-| Seguridad de dependencias (npm audit 0; Maven pendiente de scan) | 88 | 12% |
+| Pruebas automatizadas (303 frontend + 5 JDR, todas verdes) | 84 | 12% |
+| Seguridad de dependencias (`pnpm audit` 0 vulns; Maven pendiente de scan) | 91 | 12% |
 | AuthN/AuthZ Zero-Trust (PDP externo, ABAC, tenant, contexto transitivo W1, gobernanza MCP CIX, kill-switch) | 89 | 14% |
 | Honestidad de datos (etiquetas DEMO, sin falsificar "verificado") | 92 | 10% |
 | Resiliencia/runtime (rate-limit, cold-start, circuit-breaker, intro adaptativa) | 84 | 10% |
@@ -290,8 +273,8 @@ medidos). Peso por criticidad.
 | CI/CD y coherencia Vercel/Docker | 88 | 8% |
 | Gestión de secretos (validación env; sin KMS integrado) | 70 | 6% |
 
-- **Índice de Madurez para Producción (funcional/operativo): ~80%**
-- **Índice de Listo-para-Desplegar (build/CI/deploy): ~86%**
+- **Índice de Madurez para Producción (funcional/operativo): ~81%**
+- **Índice de Listo-para-Desplegar (build/CI/deploy): ~87%**
 
 Lo que falta para superar 95%:
 1. Cablear el ledger/BookPI a una fuente durable real (o al módulo JDR) y
@@ -305,47 +288,21 @@ Lo que falta para superar 95%:
 
 ---
 
-## Módulo JDR (Java 17 / Spring Boot 3.3.5)
+## Módulo JDR (Java 17 / Spring Boot)
 
 > **Estado:** `mvn -B verify` ✅ (compila + 5 tests). No es producción solo por
-> compilar — ver criterios de salida abajo.
+> compilar — ver criterios de salida.
 
-`jdr-generator/` es un servicio hermano de persistencia y dominio endurecido,
-integrado según `Isabella_JDR_propuesta_tecnica_final_produccion.md`. Isabella
-conserva la autoridad de identidad, autorización, tenant, RBAC/ABAC, memoria,
-provenance, auditoría y gobernanza cuántica; JDR aporta persistencia, personajes,
-reglas y trabajos cuánticos.
-
-Principios aplicados: **deny-by-default**, tenant derivado del JWT verificado,
-scopes granulares, idempotencia en mutaciones, optimistic locking (`@Version`),
-auditoría durable, outbox transaccional, rate limiting y despliegue inmutable.
-
-Estructura:
-```
-jdr-generator/
-├── api/                 # Maven module (pom.xml, Dockerfile, src/...)
-├── openapi/             # isabella-jdr-v1.yaml (contrato)
-├── deploy/              # docker-compose.local.yml, k8s/, secrets.example.yaml
-├── .github/workflows/   # ci.yml (compile, test, Flyway, quality, Trivy, SBOM, firma)
-└── docs/threat-model.md
-```
-
-Endpoints (todos tras WAF/API Gateway + Isabella Authorization):
-`GET/POST /api/v1/characters`, `GET/PATCH/DELETE /api/v1/characters/{id}`,
-`GET/POST /api/v1/memory-links`, `GET /api/v1/rules`,
-`POST /api/v1/quantum/jobs`, `GET /api/v1/quantum/jobs/{jobId}`,
-`GET /api/v1/audit/events`, `/actuator/health`, `/actuator/prometheus`.
+`jdr-generator/` es un servicio hermano de persistencia y dominio endurecido
+(deny-by-default, tenant derivado del JWT, scopes granulares, idempotencia,
+optimistic locking, auditoría durable, outbox transaccional, rate limiting).
+Ver `jdr-generator/README` y `docs/threat-model.md`.
 
 Verificación local (requiere JDK 17 + Maven):
 ```bash
 cd jdr-generator/api
-mvn -B verify                 # compila, pruebas, Flyway validate, quality (-Pci)
-docker compose -f ../deploy/docker-compose.local.yml up -d mysql
-mvn -B spring-boot:run        # levanta el servicio (perfil local)
+mvn -B verify
 ```
-`No es producción solo por compilar`: se requieren JWT/JWKS reales,隔离 multi-tenant,
-pruebas de concurrencia/rate-limit, backup/restore, escaneo de imagen y rollback
-por digest antes del release (ver `docs/threat-model.md` y criterios de salida).
 
 ---
 

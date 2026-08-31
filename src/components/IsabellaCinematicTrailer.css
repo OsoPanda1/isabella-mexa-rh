@@ -222,3 +222,473 @@
     justify-content: flex-start;
   }
 }
+
+/* =============================================================================
+ * Isabella Cinematic Experience — topbar / footer / progreso
+ * ============================================================================= */
+
+.isabella-trailer__topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(14px, 2.5vw, 24px) clamp(18px, 3vw, 36px);
+  z-index: 5;
+}
+
+.isabella-trailer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #e6edf6;
+  background: rgba(10, 14, 26, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 8px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.isabella-trailer__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #e6edf6;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.isabella-trailer__icon-btn:hover,
+.isabella-trailer__icon-btn:focus-visible {
+  border-color: rgba(139, 92, 246, 0.6);
+  background: rgba(30, 41, 59, 0.7);
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.isabella-trailer__footer {
+  position: absolute;
+  bottom: clamp(16px, 3vw, 36px);
+  left: clamp(16px, 3vw, 36px);
+  right: clamp(16px, 3vw, 36px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 5;
+}
+
+.isabella-trailer__progress {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.isabella-trailer__progress-value {
+  height: 100%;
+  background: linear-gradient(90deg, #a78bfa, #22d3ee);
+  border-radius: 999px;
+  transition: width 140ms ease;
+}
+
+/* =============================================================================
+ * Isabella Cinematic Experience — modal de bienvenida (welcome)
+ * ============================================================================= */
+
+.isabella-welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: isabella-fade-in 240ms ease;
+}
+
+.isabella-welcome-modal {
+  width: min(92vw, 920px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(224, 187, 93, 0.35);
+  background: rgba(6, 10, 20, 0.96);
+  color: #fffefa;
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(224, 187, 93, 0.14);
+}
+
+.isabella-welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(224, 187, 93, 0.18);
+  background: rgba(6, 10, 20, 0.85);
+}
+
+.isabella-welcome-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.isabella-welcome-avatar {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(224, 187, 93, 0.6);
+  box-shadow: 0 0 12px rgba(224, 187, 93, 0.3);
+}
+
+.isabella-welcome-brand h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fffefa;
+}
+
+.isabella-welcome-brand p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #929da8;
+}
+
+.isabella-welcome-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #929da8;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.isabella-welcome-close:hover {
+  color: #fffefa;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.isabella-welcome-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.35);
+  overflow-x: auto;
+}
+
+.isabella-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: #929da8;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.isabella-tab:hover {
+  color: #e9e4da;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.isabella-tab--active {
+  color: #f5d77f;
+  background: rgba(224, 187, 93, 0.1);
+}
+
+.isabella-welcome-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.isabella-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.isabella-feature-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(224, 187, 93, 0.25);
+  background: rgba(9, 14, 27, 0.7);
+  color: #e0bb5d;
+}
+
+.isabella-feature-card h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #fffefa;
+}
+
+.isabella-feature-card p {
+  margin: 0;
+  font-size: 13px;
+  color: #d9d3c8;
+  line-height: 1.55;
+}
+
+.isabella-pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.isabella-pillar {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(52, 68, 92, 0.8);
+  background: rgba(5, 8, 17, 0.85);
+  color: #e0bb5d;
+}
+
+.isabella-pillar small {
+  display: inline-block;
+  margin: 8px 0;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(71, 85, 105, 0.9);
+  background: rgba(15, 23, 42, 0.9);
+  color: #94a3b8;
+}
+
+.isabella-pillar h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fffefa;
+}
+
+.isabella-pillar p {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.isabella-manifesto {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 12px 0;
+}
+
+.isabella-manifesto > span {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #e0bb5d;
+}
+
+.isabella-manifesto blockquote {
+  margin: 0;
+  padding: 8px 0 8px 18px;
+  border-left: 2px solid #e0bb5d;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 17px;
+  color: #e9e4da;
+  line-height: 1.5;
+}
+
+.isabella-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.isabella-capability {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(52, 68, 92, 0.8);
+  background: rgba(6, 10, 21, 0.85);
+  color: #38bdf8;
+}
+
+.isabella-capability strong {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: 13px;
+  color: #fffefa;
+}
+
+.isabella-capability p {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.isabella-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.isabella-starter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px;
+  text-align: left;
+  border-radius: 16px;
+  border: 1px solid rgba(52, 68, 92, 0.8);
+  background: rgba(5, 8, 17, 0.85);
+  color: #e0bb5d;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.isabella-starter:hover {
+  border-color: rgba(224, 187, 93, 0.6);
+  background: rgba(9, 15, 31, 0.9);
+  transform: translateY(-2px);
+}
+
+.isabella-starter small {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(224, 187, 93, 0.3);
+  background: rgba(224, 187, 93, 0.1);
+  color: #f5d77f;
+}
+
+.isabella-starter strong {
+  font-size: 14px;
+  color: #fffefa;
+}
+
+.isabella-starter span {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.isabella-starter em {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f5d77f;
+}
+
+.isabella-welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.isabella-welcome-footer span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.isabella-enter-button {
+  padding: 12px 26px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f5d77f;
+  background: rgba(224, 187, 93, 0.15);
+  border: 1px solid rgba(224, 187, 93, 0.55);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.isabella-enter-button:hover,
+.isabella-enter-button:focus-visible {
+  background: rgba(224, 187, 93, 0.25);
+  box-shadow: 0 0 20px rgba(224, 187, 93, 0.3);
+  outline: 2px solid rgba(224, 187, 93, 0.6);
+  outline-offset: 2px;
+}
+
+@keyframes isabella-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .isabella-welcome-tabs {
+    padding: 6px 10px;
+  }
+  .isabella-welcome-content {
+    padding: 16px;
+  }
+  .isabella-welcome-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .isabella-welcome-footer span {
+    text-align: center;
+  }
+  .isabella-enter-button {
+    width: 100%;
+  }
+}

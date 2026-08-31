@@ -4,20 +4,33 @@
  * =============================================================================
  * Crea y destruye una UNICA instancia por montaje/desmontaje. No recrea la
  * escena en cada render ni usa el tiempo transcurrido como dependencia.
+ * Acepta refs a los canvas y una bandera `enabled`.
  * =============================================================================
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { ImmersiveScene } from "./ImmersiveScene";
 
-export function useImmersiveScene(
-  canvas2D: HTMLCanvasElement | null,
-  canvas3D: HTMLCanvasElement | null,
-  enabled: boolean,
-) {
+export interface UseImmersiveSceneOptions {
+  canvas2DRef: RefObject<HTMLCanvasElement | null>;
+  canvas3DRef: RefObject<HTMLCanvasElement | null>;
+  enabled: boolean;
+  enableAudio?: boolean;
+  durationMs?: number;
+}
+
+export function useImmersiveScene({
+  canvas2DRef,
+  canvas3DRef,
+  enabled,
+  enableAudio = true,
+}: UseImmersiveSceneOptions) {
   const sceneRef = useRef<ImmersiveScene | null>(null);
 
   useEffect(() => {
+    const canvas2D = canvas2DRef.current;
+    const canvas3D = canvas3DRef.current;
+
     if (!enabled || !canvas2D || !canvas3D) {
       return;
     }
@@ -25,7 +38,9 @@ export function useImmersiveScene(
     const scene = new ImmersiveScene({
       canvas2D,
       canvas3D,
-      enableAudio: true,
+      enableAudio,
+      maxPixelRatio: 1.75,
+      targetFps: 60,
     });
 
     sceneRef.current = scene;
@@ -38,7 +53,7 @@ export function useImmersiveScene(
         sceneRef.current = null;
       }
     };
-  }, [canvas2D, canvas3D, enabled]);
+  }, [canvas2DRef, canvas3DRef, enabled, enableAudio]);
 
   return sceneRef;
 }

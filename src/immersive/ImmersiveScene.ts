@@ -41,6 +41,8 @@ export interface ImmersiveSceneStatus {
   audio: "disabled" | "locked" | "loading" | "ready" | "playing" | "error";
   quality: "low" | "medium" | "high";
   contextLost: boolean;
+  elapsedMs: number;
+  muted: boolean;
 }
 
 type AudioState = {
@@ -88,6 +90,7 @@ export class ImmersiveScene {
 
   private elapsed = 0;
   private previousTimestamp = 0;
+  private muted = false;
 
   private currentRotationX = 0;
   private currentRotationY = 0;
@@ -606,6 +609,30 @@ export class ImmersiveScene {
     this.pause();
   }
 
+  get elapsedMs(): number {
+    return this.elapsed * 1000;
+  }
+
+  mute(): void {
+    if (this.muted) return;
+    this.muted = true;
+    if (this.audio?.source.isPlaying) {
+      this.audio.source.pause();
+    }
+  }
+
+  unmute(): void {
+    if (!this.muted) return;
+    this.muted = false;
+    if (
+      this.audio?.source &&
+      this.running &&
+      !this.audio.source.isPlaying
+    ) {
+      this.audio.source.play();
+    }
+  }
+
   set3DOpacity(value: number): void {
     if (this.disposed) return;
 
@@ -630,6 +657,8 @@ export class ImmersiveScene {
             : "loading",
       quality: this.quality.quality,
       contextLost: this.contextLost,
+      elapsedMs: this.elapsed * 1000,
+      muted: this.muted,
     };
   }
 
