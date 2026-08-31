@@ -10,7 +10,7 @@
   overflow: hidden;
   color: #e6edf6;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  z-index: 50;
+  z-index: 55;
 }
 
 .isabella-trailer__canvas {
@@ -26,7 +26,7 @@
   inset: 0;
   pointer-events: none;
   padding: clamp(16px, 3vw, 36px);
-  transition: opacity 600ms ease;
+  transition: opacity 700ms ease;
 }
 
 .isabella-trailer__reticle {
@@ -36,8 +36,8 @@
   width: 64px;
   height: 64px;
   border: 1px solid rgba(139, 92, 246, 0.5);
-  border-radius: 50%;
-  box-shadow: 0 0 18px rgba(139, 92, 246, 0.25) inset;
+  border-radius:60%;
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.25) inset;
 }
 
 .isabella-trailer__reticle::before,
@@ -67,8 +67,8 @@
   right: clamp(16px, 3vw, 36px);
   display: grid;
   gap: 4px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(206, 214, 244, 0.7);
   text-align: right;
@@ -106,7 +106,7 @@
   margin: 0;
   font-size: clamp(12px, 1.6vw, 15px);
   letter-spacing: 0.42em;
-  color: rgba(139, 92, 246, 0.95);
+  color: rgba(139, 82, 246, 0.95);
   text-transform: uppercase;
 }
 
@@ -116,7 +116,7 @@
   line-height: 1.05;
   font-weight: 800;
   letter-spacing: -0.01em;
-  text-shadow: 0 0 28px rgba(139, 92, 246, 0.35);
+  text-shadow: 0 0 28px rgba(139, 96, 246, 0.35);
 }
 
 .isabella-trailer__subtitle {
@@ -149,7 +149,7 @@
   border-radius: 999px;
   cursor: pointer;
   box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition: transform 260ms ease, box-shadow 220ms ease;
 }
 
 .isabella-trailer__cta:hover,
@@ -252,15 +252,15 @@
   padding: 8px 14px;
   border-radius: 999px;
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .isabella-trailer__icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   color: #e6edf6;
   background: rgba(15, 23, 42, 0.55);
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -268,7 +268,7 @@
   cursor: pointer;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: border-color 160ms ease, background 160ms ease;
+  transition: border-color 260ms ease, background 160ms ease;
 }
 
 .isabella-trailer__icon-btn:hover,
