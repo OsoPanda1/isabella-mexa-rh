@@ -7,6 +7,7 @@
  */
 
 import { inferSovereign } from "../../lib/isabella-inference-engine";
+import { dualKernel, createRequestId } from "../../lib/cognition";
 
 export interface InferenceRequest {
   readonly systemPrompt: string;
@@ -64,6 +65,44 @@ class SovereignIsabellaProvider implements RuntimeProvider {
 
     return {
       text: result.reply,
+      tokensUsed: Math.ceil(estimatedTokens),
+      model: this.model,
+      provider: this.name,
+    };
+  }
+}
+
+class CognitionIsabellaProvider implements RuntimeProvider {
+  readonly name = "isabella-cognition";
+  readonly model = "isabella-dual-kernel-v1";
+  readonly contextWindowLimit = 32_000;
+  readonly supportsTools = true;
+  readonly requiresApiKey = false;
+
+  async infer(req: InferenceRequest): Promise<InferenceResult> {
+    const lastUser = req.messages.filter((m) => m.role === "user").pop();
+    const input = lastUser?.content || "";
+
+    const result = await dualKernel.process({
+      requestId: createRequestId(),
+      tenantId: "rdm-digital-hub",
+      actorId: "user",
+      federationId: 5,
+      intent: input,
+      mode: "chat",
+      context: { memoryEnabled: true },
+      requestedCapabilities: req.tools ?? [],
+    });
+
+    const estimatedTokens = Math.ceil(
+      (req.systemPrompt.length +
+        req.messages.reduce((s, m) => s + m.content.length, 0) +
+        result.answer.length) /
+        3.5
+    );
+
+    return {
+      text: result.answer,
       tokensUsed: Math.ceil(estimatedTokens),
       model: this.model,
       provider: this.name,
@@ -137,6 +176,7 @@ class GeminiProvider implements RuntimeProvider {
    ========================================================================= */
 
 const providers: RuntimeProvider[] = [
+  new CognitionIsabellaProvider(),
   new SovereignIsabellaProvider(),
   new GeminiProvider(),
 ];
@@ -154,8 +194,12 @@ export function resolveRuntimeProvider(preferred?: string): RuntimeProvider {
   }
 
   // Sovereign is always first choice — no API key needed
-  const sovereign = providers.find((p) => p.name === "isabella-sovereign");
+  // (cognition es el motor alpha/beta/dual-kernel, más inteligente)
+  const sovereign = providers.find((p) => p.name === "isabella-cognition");
   if (sovereign) return sovereign;
+
+  const legacySovereign = providers.find((p) => p.name === "isabella-sovereign");
+  if (legacySovereign) return legacySovereign;
 
   // Gemini only if API key is present
   if (process.env.GEMINI_API_KEY) {
@@ -171,6 +215,6 @@ export function listProviders(): Array<{ name: string; model: string; available:
   return providers.map((p) => ({
     name: p.name,
     model: p.model,
-    available: p.name === "isabella-sovereign" || (p.requiresApiKey ? !!process.env.GEMINI_API_KEY : true),
+    available: p.name === "isabella-sovereign" || p.name === "isabella-cognition" || (p.requiresApiKey ? !!process.env.GEMINI_API_KEY : true),
   }));
 }

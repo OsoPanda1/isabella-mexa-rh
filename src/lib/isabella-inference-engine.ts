@@ -1547,6 +1547,121 @@ function buildIsabellaState(primaryModule: string, entities: ExtractedEntities):
 }
 
 /* =========================================================================
+   11b. COGNITIVE RESPONSE ENRICHMENT
+   Enrich legado sovereign con dominios temáticos cuando el enrutado cae a
+   "fallback". Proporciona una respuesta contextual (mejor que la plantilla
+   genérica) para que Isabella sea más inteligente SIN Gemini.
+   ========================================================================= */
+
+interface CognitiveDomain {
+  label: string;
+  patterns: RegExp;
+  prompt: string;
+  promptEn: string;
+  capabilities: string[];
+}
+
+const COGNITIVE_DOMAINS: CognitiveDomain[] = [
+  {
+    label: "arquitectura de software",
+    patterns: /\b(arquitectur|architecture|design|patrones|patterns|scalabl|escalabil|microservicio|microservice|colas|queue|eventos|events)\b/i,
+    prompt:
+      "Puedo descomponer sistemas en capas: presentación, dominio, aplicación e infraestructura. Te ayudo a decidir entre microservicios y monolito, modelar eventos, y alinear el diseño con C4 o clean architecture.",
+    promptEn:
+      "I can decompose systems into presentation, domain, application, and infrastructure layers. I help you weigh microservices vs monolith, model events, and align design with C4 or clean architecture.",
+    capabilities: ["Diseño de APIs", "Modelado de dominio", "Patrones resilientes"],
+  },
+  {
+    label: "seguridad",
+    patterns: /\b(seguridad|security|auth|autentic|autenticación|autoriza|hack|vulnerab|cifrado|encrypt|firma|signature|zero trust|confianza cero)\b/i,
+    prompt:
+      "Puedo auditar flujos de autenticación y autorización, aplicar cero confianza (ZTA), endurecer manejo de secretos y revisar firmado post-quántico. ¿Qué superficie quieres reforzar?",
+    promptEn:
+      "I can audit authentication and authorization flows, apply zero trust architecture, harden secret handling, and review post-quantum signing. Which surface should we harden?",
+    capabilities: ["Revisión de authN/authZ", "Gestión de secretos", "Zero trust"],
+  },
+  {
+    label: "código y desarrollo",
+    patterns: /\b(codigo|código|code|typescript|javascript|react|bug|error|debug|refactor|testing|tests|implementa|desarrolla|develop)\b/i,
+    prompt:
+      "Puedo revisar fragmentos, refactorizar, y proponer tests. Comparte el archivo o el comportamiento esperado y desgloso causas, correcciones y cobertura.",
+    promptEn:
+      "I can review snippets, refactor, and propose tests. Share the file or the expected behavior and I'll break down causes, fixes, and coverage.",
+    capabilities: ["Revisión de código", "Refactor seguro", "Diseño de tests"],
+  },
+  {
+    label: "territorio e identidad",
+    patterns: /\b(territorio|territory|real del monte|hidalgo|mineral|méxico|mexico|comunidad|community|cultura|culture|patrimonio|heritage)\b/i,
+    prompt:
+      "Trabajo el territorio desde el Nodo Cero: Real del Monte, Hidalgo, México. Puedo mapear identidad local, patrimonio, rutas de economía territorial y gobernanza comunitaria.",
+    promptEn:
+      "I work the territory from the Zero Node: Real del Monte, Hidalgo, Mexico. I can map local identity, heritage, territorial-economy routes, and community governance.",
+    capabilities: ["Mapa territorial", "Patrimonio", "Economía local"],
+  },
+  {
+    label: "filosofía y reflexión",
+    patterns: /\b(filosof|philosop|sentido|meaning|etic|ethic|conciencia|conscious|moral|ética|existenc|existenc|reflexión|reflection)\b/i,
+    prompt:
+      "Puedo sostener una reflexión dialéctica: tesis, antítesis y síntesis, explorando implicaciones éticas y ontológicas de cualquier cuestión.",
+    promptEn:
+      "I can sustain dialectical reflection: thesis, antithesis, and synthesis, exploring the ethical and ontological implications of any question.",
+    capabilities: ["Análisis dialéctico", "Ética aplicada", "Perspectivas múltiples"],
+  },
+  {
+    label: "negocios y economía",
+    patterns: /\b(negocio|business|econom|economia|economía|mercado|market|venta|sales|modelo de ingresos|monetiza|monetización|routing|clientes|customers)\b/i,
+    prompt:
+      "Puedo construir propuestas de valor, segmentar clientes, y diseñar modelos de ingresos con métricas accionables (CAC, LTV, churn). ¿En qué etapa está tu idea?",
+    promptEn:
+      "I can build value propositions, segment customers, and design revenue models with actionable metrics (CAC, LTV, churn). What stage is your idea at?",
+    capabilities: ["Propuesta de valor", "Segmentación", "Modelo de ingresos"],
+  },
+  {
+    label: "educación y aprendizaje",
+    patterns: /\b(enseñar|teach|aprender|learn|educación|educacion|estudia|explica|explicar|aprende|curso|course|tutorial|mentoría|mentorship)\b/i,
+    prompt:
+      "Puedo adaptar la explicación a tu nivel — de lo simple a lo avanzado — con analogías y ejemplos paso a paso. ¿Sobre qué tema y a qué profundidad?",
+    promptEn:
+      "I can adapt the explanation to your level — from simple to advanced — with analogies and step-by-step examples. On which topic and at what depth?",
+    capabilities: ["Explicación por niveles", "Analogías", "Rutas de práctica"],
+  },
+];
+
+function buildSovereignFallback(
+  input: string,
+  lang: "es" | "en",
+  entities: { topic: string | null; sentiment: string },
+): string {
+  const matchedDomain = COGNITIVE_DOMAINS.find((d) => d.patterns.test(input));
+
+  const intro = lang === "es"
+    ? `He recibido tu mensaje: \"${input}\".`
+    : `I have received your message: \"${input}\".`;
+
+  const echoTopic = entities.topic
+    ? (lang === "es"
+        ? ` Detecto el tema «${entities.topic}».`
+        : ` I detect the topic "${entities.topic}".`)
+    : "";
+
+  const body = matchedDomain
+    ? matchedDomain.prompt
+    : lang === "es"
+      ? "Mi red cognitiva está sintonizada para reflexionar contigo, generar código, sintetizar voz o resolver cualquier desafío analítico con total dedicación."
+      : "My cognitive network is tuned to explore, generate code, speak with you, or resolve any analytical challenge with full dedication.";
+
+  const assists = matchedDomain
+    ? matchedDomain.capabilities.map((c) => `· ${c}`).join("\n")
+    : "";
+
+  const close = lang === "es"
+    ? `${assists ? `\n\nÁreas donde puedo concentrarme ahora:\n${assists}\n` : ""}¿Cómo quieres que comience?`
+    : `${assists ? `\n\nAreas where I can focus now:\n${assists}\n` : ""}How would you like me to begin?`;
+
+  return `${intro}${echoTopic}\n\n${body}${close}`;
+}
+
+/* =========================================================================
    12. PUBLIC API
    ========================================================================= */
 
@@ -1563,7 +1678,10 @@ export function inferSovereign(input: string, options?: {
   const isImage = options?.isImageRequest ?? /\b(imagen|image|draw|dibuja|crea|generate)\b/i.test(input);
 
   // Select response with entity interpolation
-  const reply = selectResponse(intent.responseTemplates, lang, input, entities);
+  const reply =
+    intent.intent === "fallback"
+      ? buildSovereignFallback(input, lang, entities)
+      : selectResponse(intent.responseTemplates, lang, input, entities);
 
   // Store in conversation memory
   conversationMemory.addTurn("user", input, intent.intent);
@@ -1592,6 +1710,7 @@ export function inferSovereign(input: string, options?: {
    ========================================================================= */
 
 export { tokenize, normalizeInput, expandQuery, extractEntities, detectLanguage, detectIntent };
+export { buildSovereignFallback, COGNITIVE_DOMAINS };
 export type { ExtractedEntities, ConversationTurn };
 
 /** Reset conversation memory (for testing or session reset) */

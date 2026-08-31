@@ -876,6 +876,8 @@ var init_bookpi_server = __esm({
 // src/lib/isabella-inference-engine.ts
 var isabella_inference_engine_exports = {};
 __export(isabella_inference_engine_exports, {
+  COGNITIVE_DOMAINS: () => COGNITIVE_DOMAINS,
+  buildSovereignFallback: () => buildSovereignFallback,
   detectIntent: () => detectIntent,
   detectLanguage: () => detectLanguage,
   expandQuery: () => expandQuery,
@@ -1079,13 +1081,32 @@ function buildIsabellaState(primaryModule, entities) {
     feminineEleganceIndex: 0.95 + Math.random() * 0.04
   };
 }
+function buildSovereignFallback(input, lang, entities) {
+  const matchedDomain = COGNITIVE_DOMAINS.find((d) => d.patterns.test(input));
+  const intro = lang === "es" ? `He recibido tu mensaje: "${input}".` : `I have received your message: "${input}".`;
+  const echoTopic = entities.topic ? lang === "es" ? ` Detecto el tema \xAB${entities.topic}\xBB.` : ` I detect the topic "${entities.topic}".` : "";
+  const body = matchedDomain ? matchedDomain.prompt : lang === "es" ? "Mi red cognitiva est\xE1 sintonizada para reflexionar contigo, generar c\xF3digo, sintetizar voz o resolver cualquier desaf\xEDo anal\xEDtico con total dedicaci\xF3n." : "My cognitive network is tuned to explore, generate code, speak with you, or resolve any analytical challenge with full dedication.";
+  const assists = matchedDomain ? matchedDomain.capabilities.map((c) => `\xB7 ${c}`).join("\n") : "";
+  const close = lang === "es" ? `${assists ? `
+
+\xC1reas donde puedo concentrarme ahora:
+${assists}
+` : ""}\xBFC\xF3mo quieres que comience?` : `${assists ? `
+
+Areas where I can focus now:
+${assists}
+` : ""}How would you like me to begin?`;
+  return `${intro}${echoTopic}
+
+${body}${close}`;
+}
 function inferSovereign(input, options) {
   const lang = detectLanguage(input);
   const entities = extractEntities(input);
   const { intent, confidence } = detectIntent(input);
   const primaryModule = intent.module;
   const isImage = options?.isImageRequest ?? /\b(imagen|image|draw|dibuja|crea|generate)\b/i.test(input);
-  const reply = selectResponse(intent.responseTemplates, lang, input, entities);
+  const reply = intent.intent === "fallback" ? buildSovereignFallback(input, lang, entities) : selectResponse(intent.responseTemplates, lang, input, entities);
   conversationMemory.addTurn("user", input, intent.intent);
   conversationMemory.addTurn("isabella", reply, intent.intent);
   const result = {
@@ -1109,7 +1130,7 @@ function resetConversationMemory() {
 function getConversationHistory() {
   return conversationMemory.getRecentTurns(MAX_MEMORY_TURNS);
 }
-var GLOSSARY_FAMILIES, GLOSSARY, TECH_TERMS, SENTIMENT_POSITIVE, SENTIMENT_NEGATIVE, SENTIMENT_CURIOUS, INTENT_PATTERNS, MAX_MEMORY_TURNS, ConversationMemory, conversationMemory;
+var GLOSSARY_FAMILIES, GLOSSARY, TECH_TERMS, SENTIMENT_POSITIVE, SENTIMENT_NEGATIVE, SENTIMENT_CURIOUS, INTENT_PATTERNS, MAX_MEMORY_TURNS, ConversationMemory, conversationMemory, COGNITIVE_DOMAINS;
 var init_isabella_inference_engine = __esm({
   "src/lib/isabella-inference-engine.ts"() {
     "use strict";
@@ -2182,6 +2203,57 @@ var init_isabella_inference_engine = __esm({
       }
     };
     conversationMemory = new ConversationMemory();
+    COGNITIVE_DOMAINS = [
+      {
+        label: "arquitectura de software",
+        patterns: /\b(arquitectur|architecture|design|patrones|patterns|scalabl|escalabil|microservicio|microservice|colas|queue|eventos|events)\b/i,
+        prompt: "Puedo descomponer sistemas en capas: presentaci\xF3n, dominio, aplicaci\xF3n e infraestructura. Te ayudo a decidir entre microservicios y monolito, modelar eventos, y alinear el dise\xF1o con C4 o clean architecture.",
+        promptEn: "I can decompose systems into presentation, domain, application, and infrastructure layers. I help you weigh microservices vs monolith, model events, and align design with C4 or clean architecture.",
+        capabilities: ["Dise\xF1o de APIs", "Modelado de dominio", "Patrones resilientes"]
+      },
+      {
+        label: "seguridad",
+        patterns: /\b(seguridad|security|auth|autentic|autenticación|autoriza|hack|vulnerab|cifrado|encrypt|firma|signature|zero trust|confianza cero)\b/i,
+        prompt: "Puedo auditar flujos de autenticaci\xF3n y autorizaci\xF3n, aplicar cero confianza (ZTA), endurecer manejo de secretos y revisar firmado post-qu\xE1ntico. \xBFQu\xE9 superficie quieres reforzar?",
+        promptEn: "I can audit authentication and authorization flows, apply zero trust architecture, harden secret handling, and review post-quantum signing. Which surface should we harden?",
+        capabilities: ["Revisi\xF3n de authN/authZ", "Gesti\xF3n de secretos", "Zero trust"]
+      },
+      {
+        label: "c\xF3digo y desarrollo",
+        patterns: /\b(codigo|código|code|typescript|javascript|react|bug|error|debug|refactor|testing|tests|implementa|desarrolla|develop)\b/i,
+        prompt: "Puedo revisar fragmentos, refactorizar, y proponer tests. Comparte el archivo o el comportamiento esperado y desgloso causas, correcciones y cobertura.",
+        promptEn: "I can review snippets, refactor, and propose tests. Share the file or the expected behavior and I'll break down causes, fixes, and coverage.",
+        capabilities: ["Revisi\xF3n de c\xF3digo", "Refactor seguro", "Dise\xF1o de tests"]
+      },
+      {
+        label: "territorio e identidad",
+        patterns: /\b(territorio|territory|real del monte|hidalgo|mineral|méxico|mexico|comunidad|community|cultura|culture|patrimonio|heritage)\b/i,
+        prompt: "Trabajo el territorio desde el Nodo Cero: Real del Monte, Hidalgo, M\xE9xico. Puedo mapear identidad local, patrimonio, rutas de econom\xEDa territorial y gobernanza comunitaria.",
+        promptEn: "I work the territory from the Zero Node: Real del Monte, Hidalgo, Mexico. I can map local identity, heritage, territorial-economy routes, and community governance.",
+        capabilities: ["Mapa territorial", "Patrimonio", "Econom\xEDa local"]
+      },
+      {
+        label: "filosof\xEDa y reflexi\xF3n",
+        patterns: /\b(filosof|philosop|sentido|meaning|etic|ethic|conciencia|conscious|moral|ética|existenc|existenc|reflexión|reflection)\b/i,
+        prompt: "Puedo sostener una reflexi\xF3n dial\xE9ctica: tesis, ant\xEDtesis y s\xEDntesis, explorando implicaciones \xE9ticas y ontol\xF3gicas de cualquier cuesti\xF3n.",
+        promptEn: "I can sustain dialectical reflection: thesis, antithesis, and synthesis, exploring the ethical and ontological implications of any question.",
+        capabilities: ["An\xE1lisis dial\xE9ctico", "\xC9tica aplicada", "Perspectivas m\xFAltiples"]
+      },
+      {
+        label: "negocios y econom\xEDa",
+        patterns: /\b(negocio|business|econom|economia|economía|mercado|market|venta|sales|modelo de ingresos|monetiza|monetización|routing|clientes|customers)\b/i,
+        prompt: "Puedo construir propuestas de valor, segmentar clientes, y dise\xF1ar modelos de ingresos con m\xE9tricas accionables (CAC, LTV, churn). \xBFEn qu\xE9 etapa est\xE1 tu idea?",
+        promptEn: "I can build value propositions, segment customers, and design revenue models with actionable metrics (CAC, LTV, churn). What stage is your idea at?",
+        capabilities: ["Propuesta de valor", "Segmentaci\xF3n", "Modelo de ingresos"]
+      },
+      {
+        label: "educaci\xF3n y aprendizaje",
+        patterns: /\b(enseñar|teach|aprender|learn|educación|educacion|estudia|explica|explicar|aprende|curso|course|tutorial|mentoría|mentorship)\b/i,
+        prompt: "Puedo adaptar la explicaci\xF3n a tu nivel \u2014 de lo simple a lo avanzado \u2014 con analog\xEDas y ejemplos paso a paso. \xBFSobre qu\xE9 tema y a qu\xE9 profundidad?",
+        promptEn: "I can adapt the explanation to your level \u2014 from simple to advanced \u2014 with analogies and step-by-step examples. On which topic and at what depth?",
+        capabilities: ["Explicaci\xF3n por niveles", "Analog\xEDas", "Rutas de pr\xE1ctica"]
+      }
+    ];
   }
 });
 
@@ -2195,7 +2267,7 @@ var import_express4 = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_node_fs3 = require("node:fs");
 var import_dotenv = __toESM(require("dotenv"), 1);
-var import_node_crypto54 = require("node:crypto");
+var import_node_crypto63 = require("node:crypto");
 
 // src/domains/ai/infrastructure/policy-gate.ts
 var GOVERNANCE_RULES = [
@@ -13904,7 +13976,7 @@ function getIdlenStatus() {
 }
 
 // src/core/orchestrator/orchestrator.ts
-var import_node_crypto49 = require("node:crypto");
+var import_node_crypto58 = require("node:crypto");
 
 // src/core/orchestrator/prompt-builder.ts
 var L0_CONSTITUTION = `
@@ -13985,6 +14057,1582 @@ function buildSystemPrompt(tenantId, sessionId) {
 
 // src/core/runtime/provider-registry.ts
 init_isabella_inference_engine();
+
+// src/lib/cognition/contracts.ts
+var import_node_crypto48 = require("node:crypto");
+function createRequestId() {
+  return (0, import_node_crypto48.randomUUID)();
+}
+
+// src/lib/cognition/alpha/perception.ts
+var import_node_crypto49 = require("node:crypto");
+var PerceptionEngine = class {
+  /**
+   * Process raw input and produce a structured perception.
+   */
+  async process(input, modality = "text") {
+    const normalized = this.normalize(input);
+    const language = this.detectLanguage(normalized);
+    const intent = this.classifyIntent(normalized);
+    const entities = this.extractEntities(normalized);
+    const urgency = this.assessUrgency(normalized, entities);
+    const sentiment = this.analyzeSentiment(normalized);
+    const risk = this.preliminaryRisk(normalized, intent, entities);
+    const classification = this.suggestClassification(risk, intent);
+    const features = this.extractFeatures(normalized, entities);
+    return {
+      id: (0, import_node_crypto49.randomUUID)(),
+      rawInput: input,
+      modality,
+      language,
+      intent: intent.category,
+      intentConfidence: intent.confidence,
+      entities,
+      urgency,
+      sentiment,
+      preliminaryRisk: risk,
+      suggestedClassification: classification,
+      normalizedInput: normalized,
+      extractedFeatures: features,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  /* --- Normalization --- */
+  normalize(input) {
+    return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ");
+  }
+  /* --- Language Detection --- */
+  detectLanguage(input) {
+    const spanishPatterns = /\b(el|la|los|las|un|una|que|como|para|por|con|este|esta|puedo|hacer|quiero|necesito)\b/gi;
+    const englishPatterns = /\b(the|a|an|is|are|was|can|could|should|would|need|want|make|do|how|what|where|when)\b/gi;
+    const spanishMatches = (input.match(spanishPatterns) ?? []).length;
+    const englishMatches = (input.match(englishPatterns) ?? []).length;
+    if (spanishMatches > englishMatches) return "es";
+    if (englishMatches > spanishMatches) return "en";
+    return "und";
+  }
+  /* --- Intent Classification --- */
+  classifyIntent(input) {
+    const patterns = [
+      {
+        regex: /\b(que|que|como|donde|cuando|quien|por que|cual)\b/i,
+        intent: "question",
+        weight: 1
+      },
+      {
+        regex: /\b(haz|ejecuta|corre|inicia|detiene|envia|guarda|elimina|crea)\b/i,
+        intent: "command",
+        weight: 0.95
+      },
+      {
+        regex: /\b(puedes|podrias|quiero|necesito|me gustaria|favor de)\b/i,
+        intent: "request",
+        weight: 0.9
+      },
+      {
+        regex: /\b(crear|generar|construir|desarrollar|disenar|escribir)\b/i,
+        intent: "creation",
+        weight: 0.9
+      },
+      {
+        regex: /\b(analizar|evaluar|revisar|examinar|comparar|medir)\b/i,
+        intent: "analysis",
+        weight: 0.9
+      },
+      {
+        regex: /\b(abre|navega|muestra|enseña|busca|encuentra)\b/i,
+        intent: "navigation",
+        weight: 0.85
+      },
+      {
+        regex: /\b(politica|permiso|autorizacion|auditoria|seguridad)\b/i,
+        intent: "governance",
+        weight: 0.95
+      },
+      {
+        regex: /\b(precio|costo|pago|venta|ingreso|monetizar)\b/i,
+        intent: "monetization",
+        weight: 0.9
+      },
+      {
+        regex: /\b(estado|status|sistema|configuracion|ayuda)\b/i,
+        intent: "system",
+        weight: 0.85
+      }
+    ];
+    let bestMatch = {
+      category: "question",
+      confidence: 0.5
+    };
+    for (const pattern of patterns) {
+      const matches = input.match(pattern.regex);
+      if (matches && matches.length > 0) {
+        const confidence = Math.min(
+          0.98,
+          pattern.weight * (1 + matches.length * 0.02)
+        );
+        if (confidence > bestMatch.confidence) {
+          bestMatch = { category: pattern.intent, confidence };
+        }
+      }
+    }
+    return bestMatch;
+  }
+  /* --- Entity Extraction --- */
+  extractEntities(input) {
+    const entities = [];
+    const patterns = [
+      {
+        type: "date",
+        regex: /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/g
+      },
+      {
+        type: "email",
+        regex: /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g
+      },
+      { type: "url", regex: /\b(https?:\/\/[^\s]+)\b/g },
+      { type: "number", regex: /\b(\d+(?:\.\d+)?)\b/g },
+      {
+        type: "territory",
+        regex: /\b(Real del Monte|Mineral del Monte|Hidalgo|TAMV)\b/gi
+      }
+    ];
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.regex.exec(input)) !== null) {
+        entities.push({
+          type: pattern.type,
+          value: match[1] ?? match[0],
+          confidence: 0.85,
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+    return entities;
+  }
+  /* --- Urgency Assessment --- */
+  assessUrgency(input, entities) {
+    const criticalPatterns = /\b(urgente|emergencia|critico|ahora|inmediato|danger|emergency)\b/i;
+    const highPatterns = /\b(importante|prioridad|pronto|rapido|asap|temprano)\b/i;
+    const mediumPatterns = /\bCuando puedas|en breve|pronto|usual\b/i;
+    if (criticalPatterns.test(input)) return "critical";
+    if (highPatterns.test(input)) return "high";
+    if (mediumPatterns.test(input)) return "medium";
+    if (entities.some((e) => e.type === "date")) return "low";
+    return "none";
+  }
+  /* --- Sentiment Analysis --- */
+  analyzeSentiment(input) {
+    const positivePatterns = /\b(excelente|genial|perfecto|gracias|bien|me gusta|me encanta|increible)\b/i;
+    const negativePatterns = /\b(malo|terrible|error|fallo|problema|no funciona|furioso|odio)\b/i;
+    const positive = positivePatterns.test(input);
+    const negative = negativePatterns.test(input);
+    if (positive && negative) return "mixed";
+    if (positive) return "positive";
+    if (negative) return "negative";
+    return "neutral";
+  }
+  /* --- Preliminary Risk --- */
+  preliminaryRisk(input, intent, entities) {
+    const hasSensitiveEntities = entities.some(
+      (e) => e.type === "email" || e.type === "url"
+    );
+    const isGovernanceIntent = intent.category === "governance";
+    const isSystemIntent = intent.category === "system";
+    const hasCriticalKeywords = /\b(eliminar|borrar|revoke|delete|admin|root)\b/i.test(input);
+    if (hasCriticalKeywords && isGovernanceIntent) return "R4_critical";
+    if (hasCriticalKeywords) return "R3_high";
+    if (isGovernanceIntent || isSystemIntent) return "R2_moderate";
+    if (hasSensitiveEntities) return "R2_moderate";
+    return "R1_low";
+  }
+  /* --- Classification Suggestion --- */
+  suggestClassification(risk, intent) {
+    if (risk === "R4_critical") return "critical";
+    if (risk === "R3_high") return "restricted";
+    if (risk === "R2_moderate") return "sensitive";
+    if (intent.category === "governance") return "internal";
+    return "public";
+  }
+  /* --- Feature Extraction --- */
+  extractFeatures(input, entities) {
+    const features = [];
+    if (entities.length > 0) features.push("has_entities");
+    if (input.length > 500) features.push("long_input");
+    if (input.length < 20) features.push("short_input");
+    if (/\bhttps?:\/\/\b/.test(input)) features.push("contains_url");
+    if (/\b\d+\b/.test(input)) features.push("contains_numbers");
+    return features;
+  }
+};
+var perceptionEngine = new PerceptionEngine();
+
+// src/lib/cognition/alpha/context.ts
+var import_node_crypto50 = require("node:crypto");
+var ContextBuilder = class {
+  constructor() {
+    this.defaults = {
+      session: {
+        sessionId: (0, import_node_crypto50.randomUUID)(),
+        startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        turnCount: 0,
+        lastActivityAt: (/* @__PURE__ */ new Date()).toISOString(),
+        memoryEnabled: true
+      },
+      project: {},
+      territory: {
+        territoryName: "Mineral del Monte",
+        region: "Hidalgo",
+        timezone: "America/Mexico_City"
+      },
+      device: {
+        deviceId: "unknown",
+        platform: "web"
+      },
+      objective: {
+        primaryGoal: "assist",
+        secondaryGoals: [],
+        successCriteria: ["user_satisfied", "safe_response"]
+      },
+      constraints: {
+        requiredCapabilities: [],
+        forbiddenCapabilities: []
+      },
+      applicablePolicies: ["crown_default", "territorial_boundary"]
+    };
+  }
+  /**
+   * Build a context frame from partial inputs.
+   */
+  build(partial) {
+    const now3 = (/* @__PURE__ */ new Date()).toISOString();
+    const defaultSession = this.defaults.session;
+    const defaultDevice = this.defaults.device;
+    const defaultObjective = this.defaults.objective;
+    const defaultConstraints = this.defaults.constraints;
+    const defaultTerritory = this.defaults.territory;
+    const defaultProject = this.defaults.project ?? {};
+    return {
+      id: (0, import_node_crypto50.randomUUID)(),
+      session: {
+        ...defaultSession,
+        ...partial.session,
+        sessionId: partial.sessionId ?? partial.session?.sessionId ?? defaultSession.sessionId,
+        lastActivityAt: now3
+      },
+      project: {
+        ...defaultProject,
+        ...partial.project
+      },
+      territory: {
+        ...defaultTerritory,
+        ...partial.territory
+      },
+      device: {
+        ...defaultDevice,
+        ...partial.device
+      },
+      objective: {
+        ...defaultObjective,
+        ...partial.objective
+      },
+      constraints: {
+        requiredCapabilities: [],
+        forbiddenCapabilities: [],
+        ...defaultConstraints,
+        ...partial.constraints
+      },
+      applicablePolicies: partial.applicablePolicies ?? this.defaults.applicablePolicies,
+      timestamp: now3
+    };
+  }
+  /**
+   * Merge two context frames, preferring the newer values.
+   */
+  merge(existing, updates) {
+    return {
+      ...existing,
+      ...updates,
+      session: { ...existing.session, ...updates.session },
+      project: { ...existing.project, ...updates.project },
+      territory: { ...existing.territory, ...updates.territory },
+      device: { ...existing.device, ...updates.device },
+      objective: { ...existing.objective, ...updates.objective },
+      constraints: { ...existing.constraints, ...updates.constraints },
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  /**
+   * Extract only the minimal context needed for a given intent.
+   */
+  extractMinimal(full, intentCategory) {
+    const minimal = {
+      session: {
+        ...full.session,
+        turnCount: full.session.turnCount
+      },
+      territory: full.territory,
+      constraints: full.constraints
+    };
+    if (["creation", "analysis", "command"].includes(intentCategory)) {
+      minimal.project = full.project;
+    }
+    if (["system", "command"].includes(intentCategory)) {
+      minimal.device = full.device;
+    }
+    if (["analysis", "research"].includes(intentCategory)) {
+      minimal.objective = full.objective;
+    }
+    return minimal;
+  }
+};
+var contextBuilder = new ContextBuilder();
+
+// src/lib/cognition/alpha/memory.ts
+var import_node_crypto51 = require("node:crypto");
+var AlphaMemory = class {
+  /**
+   * Retrieve memories that match the query and are within allowed scope/sensitivity.
+   */
+  async retrieve(query) {
+    const results = [];
+    for (const scope of query.scopes) {
+      results.push({
+        id: (0, import_node_crypto51.randomUUID)(),
+        content: `[Memory in scope ${scope} for: ${query.query}]`,
+        scope,
+        sensitivity: "public",
+        confidence: 0.8,
+        source: "session_memory",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        isExpired: false
+      });
+    }
+    return results.slice(0, query.maxResults);
+  }
+  /**
+   * Filter results by sensitivity level.
+   */
+  filterBySensitivity(results, maxSensitivity) {
+    const levels = [
+      "public",
+      "internal",
+      "confidential",
+      "secret"
+    ];
+    const maxIndex = levels.indexOf(maxSensitivity);
+    return results.filter((r) => {
+      const index = levels.indexOf(r.sensitivity);
+      return index <= maxIndex;
+    });
+  }
+};
+var alphaMemory = new AlphaMemory();
+
+// src/lib/cognition/alpha/research.ts
+var import_node_crypto52 = require("node:crypto");
+var ResearchEngine = class {
+  constructor() {
+    this.sources = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Execute a multi-method research query.
+   */
+  async research(query) {
+    const startTime2 = Date.now();
+    const allResults = [];
+    for (const method of query.methods) {
+      const results = await this.retrieve(query, method);
+      allResults.push(...results);
+    }
+    const deduplicated = this.deduplicate(allResults);
+    const ranked = this.rank(deduplicated, query.minRelevance);
+    const limited = ranked.slice(0, query.maxResults);
+    const claims = this.extractClaims(limited);
+    const contradictions = this.findContradictions(claims);
+    const sourceRanking = this.rankSources(limited);
+    const overallConfidence = this.calculateOverallConfidence(limited, claims);
+    return {
+      query: query.query,
+      results: limited,
+      claims,
+      contradictions,
+      sourceRanking,
+      overallConfidence,
+      retrievalMs: Date.now() - startTime2
+    };
+  }
+  /* --- Retrieval Methods --- */
+  async retrieve(query, method) {
+    const results = [];
+    switch (method) {
+      case "lexical":
+        results.push(...this.lexicalRetrieve(query.query));
+        break;
+      case "vector":
+        results.push(...this.vectorRetrieve(query.query));
+        break;
+      case "graph":
+        results.push(...this.graphRetrieve(query.query));
+        break;
+      case "hybrid":
+        results.push(...this.lexicalRetrieve(query.query));
+        results.push(...this.vectorRetrieve(query.query));
+        results.push(...this.graphRetrieve(query.query));
+        break;
+    }
+    return results;
+  }
+  lexicalRetrieve(query) {
+    return [
+      {
+        id: (0, import_node_crypto52.randomUUID)(),
+        content: `[Lexical match for: ${query}]`,
+        source: "lexical_index",
+        method: "lexical",
+        relevance: 0.7,
+        confidence: 0.8,
+        retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        metadata: {}
+      }
+    ];
+  }
+  vectorRetrieve(query) {
+    return [
+      {
+        id: (0, import_node_crypto52.randomUUID)(),
+        content: `[Semantic match for: ${query}]`,
+        source: "vector_store",
+        method: "vector",
+        relevance: 0.85,
+        confidence: 0.75,
+        retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        metadata: {}
+      }
+    ];
+  }
+  graphRetrieve(query) {
+    return [
+      {
+        id: (0, import_node_crypto52.randomUUID)(),
+        content: `[Graph traversal for: ${query}]`,
+        source: "knowledge_graph",
+        method: "graph",
+        relevance: 0.65,
+        confidence: 0.7,
+        retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        metadata: {}
+      }
+    ];
+  }
+  /* --- Processing --- */
+  deduplicate(results) {
+    const seen = /* @__PURE__ */ new Set();
+    return results.filter((r) => {
+      const key = `${r.source}:${r.content.slice(0, 100)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  rank(results, minRelevance) {
+    return results.filter((r) => r.relevance >= minRelevance).sort((a, b) => b.relevance - a.relevance);
+  }
+  extractClaims(results) {
+    return results.map((r) => ({
+      id: (0, import_node_crypto52.randomUUID)(),
+      text: r.content,
+      confidence: r.confidence,
+      source: r.source,
+      supportingEvidence: [r.content],
+      contradictingEvidence: [],
+      isSupported: r.confidence > 0.5
+    }));
+  }
+  findContradictions(claims) {
+    const contradictions = [];
+    for (let i = 0; i < claims.length; i++) {
+      for (let j2 = i + 1; j2 < claims.length; j2++) {
+        if (claims[i].source !== claims[j2].source) {
+          const similarity = this.textSimilarity(claims[i].text, claims[j2].text);
+          if (similarity > 0.7 && Math.abs(claims[i].confidence - claims[j2].confidence) > 0.3) {
+            contradictions.push({
+              claimA: claims[i],
+              claimB: claims[j2],
+              severity: similarity > 0.9 ? "high" : "medium",
+              description: `Conflicting claims from ${claims[i].source} and ${claims[j2].source}`
+            });
+          }
+        }
+      }
+    }
+    return contradictions;
+  }
+  rankSources(results) {
+    const sourceMap = /* @__PURE__ */ new Map();
+    for (const result of results) {
+      const existing = sourceMap.get(result.source) ?? { results: [] };
+      existing.results.push(result);
+      sourceMap.set(result.source, existing);
+    }
+    return Array.from(sourceMap.entries()).map(([source, data]) => ({
+      source,
+      totalResults: data.results.length,
+      avgRelevance: data.results.reduce((sum, r) => sum + r.relevance, 0) / data.results.length,
+      avgConfidence: data.results.reduce((sum, r) => sum + r.confidence, 0) / data.results.length,
+      reliabilityScore: this.calculateReliability(source)
+    })).sort((a, b) => b.reliabilityScore - a.reliabilityScore);
+  }
+  calculateOverallConfidence(results, claims) {
+    if (results.length === 0) return 0;
+    const avgRelevance = results.reduce((sum, r) => sum + r.relevance, 0) / results.length;
+    const supportedClaims = claims.filter((c) => c.isSupported).length;
+    const claimSupport = claims.length > 0 ? supportedClaims / claims.length : 0.5;
+    return avgRelevance * 0.6 + claimSupport * 0.4;
+  }
+  calculateReliability(source) {
+    const metrics2 = this.sources.get(source);
+    if (!metrics2) return 0.5;
+    const successRate = metrics2.successes / (metrics2.successes + metrics2.failures);
+    return successRate;
+  }
+  textSimilarity(a, b) {
+    const wordsA = new Set(a.toLowerCase().split(/\s+/));
+    const wordsB = new Set(b.toLowerCase().split(/\s+/));
+    const intersection = new Set([...wordsA].filter((w) => wordsB.has(w)));
+    const union = /* @__PURE__ */ new Set([...wordsA, ...wordsB]);
+    return intersection.size / union.size;
+  }
+};
+var researchEngine = new ResearchEngine();
+
+// src/lib/cognition/alpha/hypothesis.ts
+var import_node_crypto53 = require("node:crypto");
+var HypothesisEngine = class {
+  /**
+   * Generate hypotheses from research results and context.
+   */
+  generate(params) {
+    const hypotheses = [];
+    hypotheses.push({
+      id: (0, import_node_crypto53.randomUUID)(),
+      statement: `Based on available evidence, the most likely interpretation is: ${params.query}`,
+      confidence: params.researchConfidence * 0.9,
+      alternatives: [
+        "Alternative interpretation may exist with different context",
+        "Additional information could change the assessment"
+      ],
+      analogies: this.findAnalogies(params.query, params.entities),
+      risks: this.identifyRisks(params.query, params.intentCategory),
+      experiments: this.suggestExperiments(params.query, params.intentCategory),
+      supportingEvidence: [],
+      contradictingEvidence: [],
+      category: "predictive",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    if (params.researchConfidence < 0.7) {
+      hypotheses.push({
+        id: (0, import_node_crypto53.randomUUID)(),
+        statement: "Low confidence suggests multiple valid interpretations may exist",
+        confidence: 0.5,
+        alternatives: [
+          "Consider gathering more specific information",
+          "The query may benefit from rephrasing",
+          "Domain-specific expertise may be needed"
+        ],
+        analogies: [],
+        risks: ["May lead to suboptimal decisions if based on incomplete information"],
+        experiments: ["Request clarification from user", "Search for additional context"],
+        supportingEvidence: [],
+        contradictingEvidence: [],
+        category: "exploratory",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    return hypotheses;
+  }
+  findAnalogies(query, entities) {
+    const analogies = [];
+    if (entities.some((e) => e.type === "territory")) {
+      analogies.push("Similar to territorial management patterns in other regions");
+    }
+    if (entities.some((e) => e.type === "number")) {
+      analogies.push("Numerical patterns may indicate a trend or threshold");
+    }
+    return analogies;
+  }
+  identifyRisks(query, intentCategory) {
+    const risks = [];
+    if (intentCategory === "command") {
+      risks.push("Command execution may have irreversible effects");
+    }
+    if (intentCategory === "monetization") {
+      risks.push("Financial decisions should be verified before execution");
+    }
+    if (intentCategory === "governance") {
+      risks.push("Governance changes may affect multiple stakeholders");
+    }
+    return risks;
+  }
+  suggestExperiments(query, intentCategory) {
+    const experiments = [];
+    if (intentCategory === "analysis") {
+      experiments.push("Run comparative analysis with different parameters");
+    }
+    if (intentCategory === "creation") {
+      experiments.push("Create a minimal prototype first");
+    }
+    experiments.push("Validate assumptions with the user");
+    return experiments;
+  }
+};
+var hypothesisEngine = new HypothesisEngine();
+
+// src/lib/cognition/alpha/proposal.ts
+var import_node_crypto54 = require("node:crypto");
+var ProposalEngine = class {
+  /**
+   * Generate a structured proposal from analysis results.
+   */
+  generate(input) {
+    const alternatives = this.generateAlternatives(input);
+    const assumptions = this.extractAssumptions(input);
+    const uncertainties = this.extractUncertainties(input);
+    const metrics2 = this.defineMetrics(input);
+    return {
+      proposalId: (0, import_node_crypto54.randomUUID)(),
+      title: this.generateTitle(input.query),
+      problem: input.hypothesis,
+      valueProposition: this.generateValueProposition(input),
+      audience: this.identifyAudience(input.intent),
+      alternatives,
+      assumptions,
+      uncertainties,
+      firstDeliverable: this.defineFirstDeliverable(input),
+      metrics: metrics2,
+      status: "draft",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  generateTitle(query) {
+    const words = query.split(" ").slice(0, 8).join(" ");
+    return `Proposal: ${words}`;
+  }
+  generateValueProposition(input) {
+    return `Addressing: ${input.query}. This proposal provides a structured approach with ${input.alternatives.length} alternatives and ${input.risks.length} identified risks.`;
+  }
+  generateAlternatives(input) {
+    const alternatives = [
+      {
+        name: "Direct approach",
+        cost: 0,
+        currency: "USD",
+        risk: "low",
+        timeToFirstResult: "immediate"
+      },
+      {
+        name: "Research-first approach",
+        cost: 50,
+        currency: "USD",
+        risk: "low",
+        timeToFirstResult: "1-2 hours"
+      },
+      {
+        name: "Full implementation",
+        cost: 200,
+        currency: "USD",
+        risk: "medium",
+        timeToFirstResult: "1-3 days"
+      }
+    ];
+    if (input.constraints?.maxCostUsd !== void 0) {
+      return alternatives.filter((a) => a.cost <= input.constraints.maxCostUsd);
+    }
+    return alternatives;
+  }
+  identifyAudience(intent) {
+    const audiences = {
+      question: ["user"],
+      command: ["user", "system"],
+      request: ["user"],
+      creation: ["user", "team"],
+      analysis: ["user", "analysts"],
+      governance: ["admin", "team"],
+      monetization: ["user", "finance"],
+      system: ["admin"]
+    };
+    return audiences[intent] ?? ["user"];
+  }
+  extractAssumptions(input) {
+    return [
+      "Available information is accurate and up-to-date",
+      "User has necessary permissions for requested actions",
+      "System resources are available for execution",
+      "No conflicting operations are in progress"
+    ];
+  }
+  extractUncertainties(input) {
+    const uncertainties = [
+      "External system availability may affect execution",
+      "User intent may differ from literal interpretation"
+    ];
+    if (input.risks.length > 0) {
+      uncertainties.push(`Identified risks: ${input.risks.join(", ")}`);
+    }
+    return uncertainties;
+  }
+  defineFirstDeliverable(input) {
+    return `Initial response addressing: ${input.query.slice(0, 100)}`;
+  }
+  defineMetrics(input) {
+    return [
+      "User satisfaction score",
+      "Response accuracy",
+      "Execution time",
+      "Resource utilization",
+      "Error rate"
+    ];
+  }
+};
+var proposalEngine = new ProposalEngine();
+
+// src/lib/cognition/beta/identity.ts
+var IdentityResolver = class {
+  constructor() {
+    this.knownRoles = /* @__PURE__ */ new Map([
+      ["admin", ["*"]],
+      ["user", ["cognitive:read", "cognitive:write", "memory:read"]],
+      ["viewer", ["cognitive:read"]],
+      ["operator", ["cognitive:read", "cognitive:write", "pipeline:execute"]]
+    ]);
+  }
+  /**
+   * Resolve identity from request context.
+   */
+  resolve(params) {
+    const roles = this.inferRoles(params.actorId, params.tenantId);
+    const scopes = this.resolveScopes(roles, params.providedScopes);
+    const assuranceLevel = this.assessAssuranceLevel(
+      params.authMethod ?? "session"
+    );
+    return {
+      actorId: params.actorId,
+      tenantId: params.tenantId,
+      sessionId: params.sessionId,
+      roles,
+      scopes,
+      assuranceLevel,
+      authenticatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      metadata: {}
+    };
+  }
+  /**
+   * Verify that an identity has the required scopes.
+   */
+  verify(identity, requiredScopes) {
+    const granted = [];
+    const denied = [];
+    for (const scope of requiredScopes) {
+      if (identity.scopes.includes(scope) || identity.scopes.includes("*")) {
+        granted.push(scope);
+      } else {
+        denied.push(scope);
+      }
+    }
+    return {
+      verified: denied.length === 0,
+      method: "session",
+      assuranceLevel: identity.assuranceLevel,
+      scopesGranted: granted,
+      deniedScopes: denied,
+      reason: denied.length > 0 ? `Missing scopes: ${denied.join(", ")}` : void 0
+    };
+  }
+  inferRoles(actorId, tenantId) {
+    if (actorId.startsWith("admin")) return ["admin"];
+    if (actorId.startsWith("operator")) return ["operator"];
+    return ["user"];
+  }
+  resolveScopes(roles, provided) {
+    const scopeSet = /* @__PURE__ */ new Set();
+    for (const role of roles) {
+      const roleScopes = this.knownRoles.get(role) ?? [];
+      for (const scope of roleScopes) {
+        scopeSet.add(scope);
+      }
+    }
+    if (provided) {
+      for (const scope of provided) {
+        scopeSet.add(scope);
+      }
+    }
+    return Array.from(scopeSet);
+  }
+  assessAssuranceLevel(method) {
+    const levels = {
+      mfa: "critical",
+      oauth: "high",
+      api_key: "verified",
+      hmac: "verified",
+      session: "basic"
+    };
+    return levels[method] ?? "none";
+  }
+};
+var identityResolver = new IdentityResolver();
+
+// src/lib/cognition/beta/classification.ts
+var ClassificationEngine = class {
+  constructor() {
+    this.classificationRules = [
+      {
+        pattern: /\b(password|secret|token|key|credential)\b/i,
+        classification: "critical",
+        weight: 1
+      },
+      {
+        pattern: /\b(ssn|social security|credit card|bank account)\b/i,
+        classification: "restricted",
+        weight: 0.95
+      },
+      {
+        pattern: /\b(personal|private|confidential)\b/i,
+        classification: "sensitive",
+        weight: 0.8
+      },
+      {
+        pattern: /\b(internal|team|organization)\b/i,
+        classification: "internal",
+        weight: 0.7
+      },
+      {
+        pattern: /\b(public|open|shared)\b/i,
+        classification: "public",
+        weight: 0.6
+      }
+    ];
+  }
+  /**
+   * Classify input based on content analysis.
+   */
+  classify(input, context) {
+    const factors = [];
+    let maxWeight = 0;
+    let suggestedClassification = "public";
+    for (const rule of this.classificationRules) {
+      if (rule.pattern.test(input)) {
+        factors.push(`Matched pattern: ${rule.pattern.source}`);
+        if (rule.weight > maxWeight) {
+          maxWeight = rule.weight;
+          suggestedClassification = rule.classification;
+        }
+      }
+    }
+    if (context?.intentCategory === "governance") {
+      if (suggestedClassification === "public") {
+        suggestedClassification = "internal";
+        factors.push("Governance intent elevates classification");
+      }
+    }
+    if (context?.entities?.some((e) => e.type === "email" || e.type === "url")) {
+      if (suggestedClassification === "public") {
+        suggestedClassification = "internal";
+        factors.push("PII entities detected");
+      }
+    }
+    return {
+      classification: suggestedClassification,
+      confidence: maxWeight > 0 ? maxWeight : 0.5,
+      reason: factors.length > 0 ? factors.join("; ") : "No specific classification rules matched",
+      factors
+    };
+  }
+  /**
+   * Check if a classification allows access at the required level.
+   */
+  allowsAccess(dataClassification, requiredLevel) {
+    const levels = [
+      "public",
+      "internal",
+      "private",
+      "sensitive",
+      "restricted",
+      "critical"
+    ];
+    const dataIndex = levels.indexOf(dataClassification);
+    const requiredIndex = levels.indexOf(requiredLevel);
+    return dataIndex <= requiredIndex;
+  }
+};
+var classificationEngine = new ClassificationEngine();
+
+// src/lib/cognition/beta/risk.ts
+var RiskEngine = class {
+  /**
+   * Assess risk based on intent, classification, and context.
+   */
+  assess(params) {
+    let score = 0;
+    const factors = [];
+    const mitigations = [];
+    const classificationRisks = {
+      critical: 40,
+      restricted: 30,
+      sensitive: 20,
+      private: 10,
+      internal: 5,
+      public: 0
+    };
+    const classRisk = classificationRisks[params.classification] ?? 0;
+    if (classRisk > 0) {
+      score += classRisk;
+      factors.push(`Classification: ${params.classification} (+${classRisk})`);
+    }
+    if (params.involvesGovernance) {
+      score += 20;
+      factors.push("Governance involvement (+20)");
+    }
+    if (params.involvesFinancial) {
+      score += 15;
+      factors.push("Financial operations (+15)");
+    }
+    if (params.isIrreversible) {
+      score += 25;
+      factors.push("Irreversible action (+25)");
+    }
+    if (params.hasExternalData) {
+      score += 10;
+      factors.push("External data involved (+10)");
+    }
+    let level;
+    let requiresApproval = false;
+    if (score >= 60) {
+      level = "R4_critical";
+      requiresApproval = true;
+      mitigations.push("Requires explicit approval");
+      mitigations.push("Full audit trail required");
+    } else if (score >= 40) {
+      level = "R3_high";
+      requiresApproval = true;
+      mitigations.push("Requires approval");
+      mitigations.push("Review recommended");
+    } else if (score >= 20) {
+      level = "R2_moderate";
+      mitigations.push("Standard monitoring");
+    } else if (score >= 5) {
+      level = "R1_low";
+      mitigations.push("Basic logging");
+    } else {
+      level = "R0_informational";
+    }
+    return {
+      level,
+      score,
+      factors,
+      mitigations,
+      requiresApproval
+    };
+  }
+};
+var riskEngine = new RiskEngine();
+
+// src/lib/cognition/beta/policy.ts
+var import_node_crypto55 = require("node:crypto");
+var PolicyEngine = class {
+  constructor() {
+    this.policies = [
+      {
+        id: "crown_zero_trust",
+        name: "Zero Trust Tool Execution",
+        condition: (ctx) => ctx.requestedCapabilities.length > 0,
+        action: "review",
+        reason: "Tool execution requires review"
+      },
+      {
+        id: "territorial_boundary",
+        name: "Territorial Data Boundary",
+        condition: (ctx) => ctx.classification === "critical" || ctx.classification === "restricted",
+        action: "review",
+        reason: "Sensitive data requires boundary check"
+      },
+      {
+        id: "high_risk_escalation",
+        name: "High Risk Escalation",
+        condition: (ctx) => ctx.risk.level === "R4_critical" || ctx.risk.level === "R3_high",
+        action: "review",
+        reason: "High risk requires human approval"
+      },
+      {
+        id: "insufficient_scope",
+        name: "Insufficient Scope",
+        condition: (ctx) => ctx.identity.scopes.length === 0,
+        action: "deny",
+        reason: "No scopes granted"
+      },
+      {
+        id: "governance_protection",
+        name: "Governance Protection",
+        condition: (ctx) => ctx.intent === "governance" && ctx.identity.assuranceLevel === "none",
+        action: "deny",
+        reason: "Governance operations require authentication"
+      }
+    ];
+  }
+  /**
+   * Evaluate all policies and produce a CROWN decision.
+   */
+  evaluate(context) {
+    const results = [];
+    let finalAction = "allow";
+    const scopeDenials = [];
+    for (const policy of this.policies) {
+      if (policy.condition(context)) {
+        results.push({
+          policyId: policy.id,
+          action: policy.action,
+          reason: policy.reason
+        });
+        if (policy.action === "deny") {
+          finalAction = "deny";
+        } else if (policy.action === "review" && finalAction !== "deny") {
+          finalAction = "review";
+        } else if (policy.action === "defer" && finalAction === "allow") {
+          finalAction = "defer";
+        }
+      }
+    }
+    for (const cap of context.requestedCapabilities) {
+      if (!context.identity.scopes.includes(cap) && !context.identity.scopes.includes("*")) {
+        scopeDenials.push(cap);
+      }
+    }
+    return {
+      decisionId: (0, import_node_crypto55.randomUUID)(),
+      result: finalAction,
+      riskLevel: context.risk.level,
+      classification: context.classification,
+      policyIds: results.map((r) => r.policyId),
+      reason: results.length > 0 ? results.map((r) => r.reason).join("; ") : "No policies triggered",
+      scopeDenials,
+      reviewRequired: finalAction === "review",
+      reversible: finalAction !== "deny",
+      evaluatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+};
+var policyEngine = new PolicyEngine();
+
+// src/lib/cognition/beta/capability.ts
+var CapabilityRegistry = class {
+  constructor() {
+    this.capabilities = /* @__PURE__ */ new Map();
+    this.registerDefaults();
+  }
+  /**
+   * Register a tool capability.
+   */
+  register(capability) {
+    this.capabilities.set(capability.capabilityId, capability);
+  }
+  /**
+   * Select the best capability for a given task.
+   */
+  select(params) {
+    const candidates = Array.from(this.capabilities.values()).filter((cap) => {
+      if (params.requestedCapabilities.length > 0) {
+        if (!params.requestedCapabilities.includes(cap.capabilityId)) {
+          return false;
+        }
+      }
+      const hasScope = cap.requiredScopes.every(
+        (scope) => params.allowedScopes.includes(scope) || params.allowedScopes.includes("*")
+      );
+      if (!hasScope) return false;
+      if (params.constraints?.maxCostUsd !== void 0 && cap.riskLevel === "critical") {
+        return false;
+      }
+      return true;
+    });
+    if (candidates.length === 0) return null;
+    const sorted = candidates.sort((a, b) => {
+      const riskOrder = {
+        low: 0,
+        medium: 1,
+        high: 2,
+        critical: 3
+      };
+      return riskOrder[a.riskLevel] - riskOrder[b.riskLevel];
+    });
+    const selected = sorted[0];
+    if (!selected) return null;
+    return {
+      capabilityId: selected.capabilityId,
+      toolId: selected.capabilityId,
+      reason: `Selected by risk level: ${selected.riskLevel}`,
+      estimatedCostUsd: 0,
+      estimatedLatencyMs: selected.timeoutMs,
+      reversible: selected.reversible,
+      requiredScopes: selected.requiredScopes
+    };
+  }
+  /**
+   * List all available capabilities.
+   */
+  list() {
+    return Array.from(this.capabilities.values());
+  }
+  /**
+   * Get a specific capability.
+   */
+  get(capabilityId) {
+    return this.capabilities.get(capabilityId);
+  }
+  registerDefaults() {
+    this.register({
+      capabilityId: "memory_search",
+      version: "1.0.0",
+      inputSchema: { type: "object", properties: { query: { type: "string" } } },
+      outputSchema: { type: "object", properties: { results: { type: "array" } } },
+      requiredScopes: ["memory:read"],
+      riskLevel: "low",
+      networkAccess: "none",
+      reversible: true,
+      timeoutMs: 5e3
+    });
+    this.register({
+      capabilityId: "web_search",
+      version: "1.0.0",
+      inputSchema: { type: "object", properties: { query: { type: "string" } } },
+      outputSchema: { type: "object", properties: { results: { type: "array" } } },
+      requiredScopes: ["cognitive:read"],
+      riskLevel: "low",
+      networkAccess: "allowlist",
+      reversible: true,
+      timeoutMs: 1e4
+    });
+    this.register({
+      capabilityId: "code_analysis",
+      version: "1.0.0",
+      inputSchema: { type: "object", properties: { code: { type: "string" } } },
+      outputSchema: { type: "object", properties: { analysis: { type: "object" } } },
+      requiredScopes: ["cognitive:read", "cognitive:write"],
+      riskLevel: "medium",
+      networkAccess: "none",
+      reversible: true,
+      timeoutMs: 15e3
+    });
+    this.register({
+      capabilityId: "policy_check",
+      version: "1.0.0",
+      inputSchema: { type: "object", properties: { action: { type: "string" } } },
+      outputSchema: { type: "object", properties: { allowed: { type: "boolean" } } },
+      requiredScopes: ["pipeline:execute"],
+      riskLevel: "low",
+      networkAccess: "none",
+      reversible: true,
+      timeoutMs: 2e3
+    });
+    this.register({
+      capabilityId: "territory_query",
+      version: "1.0.0",
+      inputSchema: { type: "object", properties: { territoryId: { type: "string" } } },
+      outputSchema: { type: "object", properties: { data: { type: "object" } } },
+      requiredScopes: ["cognitive:read"],
+      riskLevel: "low",
+      networkAccess: "none",
+      reversible: true,
+      timeoutMs: 5e3
+    });
+  }
+};
+var capabilityRegistry = new CapabilityRegistry();
+
+// src/lib/cognition/beta/verification.ts
+var VerificationEngine = class {
+  /**
+   * Verify a response against all verification criteria.
+   */
+  verify(params) {
+    const checks = [];
+    checks.push(this.checkSecurity(params.response));
+    checks.push(this.checkCoherence(params.response));
+    checks.push(this.checkEvidence(params.evidence));
+    checks.push(this.checkCost(params.costUsd));
+    checks.push(this.checkReversibility(params.reversible, params.governance));
+    checks.push(this.checkProvenance(params.provenance));
+    checks.push(this.checkPolicyCompliance(params.governance));
+    const passedChecks = checks.filter((c) => c.passed).length;
+    const overallScore = passedChecks / checks.length;
+    const requiresCorrection = overallScore < 0.7;
+    const correctionSuggestions = checks.filter((c) => !c.passed).map((c) => `Fix: ${c.name} - ${c.details}`);
+    return {
+      verified: overallScore >= 0.7,
+      checks,
+      overallScore,
+      requiresCorrection,
+      correctionSuggestions
+    };
+  }
+  checkSecurity(response) {
+    const hasSensitiveData = /\b(password|secret|token|key)\b/i.test(response);
+    const hasExternalUrls = /\bhttps?:\/\/(?!localhost)\b/i.test(response);
+    return {
+      name: "Security",
+      passed: !hasSensitiveData,
+      score: hasSensitiveData ? 0 : 1,
+      details: hasSensitiveData ? "Response contains potentially sensitive data" : "No sensitive data detected"
+    };
+  }
+  checkCoherence(response) {
+    const hasContent = response.length > 10;
+    const hasStructure = response.includes(".") || response.includes("\n");
+    return {
+      name: "Coherence",
+      passed: hasContent && hasStructure,
+      score: hasContent && hasStructure ? 1 : 0.5,
+      details: hasContent && hasStructure ? "Response has adequate content and structure" : "Response may be too short or unstructured"
+    };
+  }
+  checkEvidence(evidence) {
+    const hasEvidence = evidence.length > 0;
+    const avgConfidence = hasEvidence ? evidence.reduce((sum, e) => sum + e.confidence, 0) / evidence.length : 0;
+    return {
+      name: "Evidence",
+      passed: hasEvidence && avgConfidence > 0.5,
+      score: avgConfidence,
+      details: hasEvidence ? `${evidence.length} evidence records, avg confidence: ${avgConfidence.toFixed(2)}` : "No evidence records provided"
+    };
+  }
+  checkCost(costUsd) {
+    const acceptable = costUsd < 10;
+    return {
+      name: "Cost",
+      passed: acceptable,
+      score: acceptable ? 1 : 0.5,
+      details: `Cost: $${costUsd.toFixed(2)} USD`
+    };
+  }
+  checkReversibility(reversible, governance) {
+    const appropriate = reversible || governance.result === "allow";
+    return {
+      name: "Reversibility",
+      passed: appropriate,
+      score: appropriate ? 1 : 0.5,
+      details: reversible ? "Operation is reversible" : "Operation is irreversible but approved"
+    };
+  }
+  checkProvenance(provenance) {
+    const hasProvenance = !!provenance.auditId;
+    const hasHashes = !!provenance.requestHash && !!provenance.outputHash;
+    return {
+      name: "Provenance",
+      passed: hasProvenance && hasHashes,
+      score: hasProvenance && hasHashes ? 1 : 0.5,
+      details: hasProvenance && hasHashes ? "Provenance record complete" : "Provenance record incomplete"
+    };
+  }
+  checkPolicyCompliance(governance) {
+    const isCompliant = governance.result !== "deny";
+    return {
+      name: "Policy Compliance",
+      passed: isCompliant,
+      score: isCompliant ? 1 : 0,
+      details: isCompliant ? `Policy decision: ${governance.result}` : `Policy denied: ${governance.reason}`
+    };
+  }
+};
+var verificationEngine = new VerificationEngine();
+
+// src/lib/cognition/dual-kernel.ts
+var import_node_crypto56 = require("node:crypto");
+var CLASSIFICATION_LEVELS = [
+  "public",
+  "internal",
+  "private",
+  "sensitive",
+  "restricted",
+  "critical"
+];
+function toSensitivityMax(classification) {
+  const classIndex = CLASSIFICATION_LEVELS.indexOf(
+    classification
+  );
+  if (classIndex <= 1) return "public";
+  if (classIndex <= 3) return "internal";
+  if (classIndex <= 4) return "confidential";
+  return "secret";
+}
+var DualKernel = class {
+  /**
+   * Process a request through the full Alpha → Beta pipeline.
+   */
+  async process(request) {
+    const startTime2 = Date.now();
+    let state = "received";
+    const evidence = [];
+    try {
+      state = "identified";
+      const identity = identityResolver.resolve({
+        actorId: request.actorId,
+        tenantId: request.tenantId,
+        ...request.sessionId !== void 0 ? { sessionId: request.sessionId } : {}
+      });
+      state = "classified";
+      const classification = classificationEngine.classify(request.intent, {
+        intentCategory: request.mode
+      });
+      state = "alpha_processing";
+      const perception = await perceptionEngine.process(request.intent);
+      state = "context_ready";
+      const context = contextBuilder.build({
+        session: {
+          sessionId: request.sessionId ?? (0, import_node_crypto56.randomUUID)(),
+          startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          turnCount: 0,
+          lastActivityAt: (/* @__PURE__ */ new Date()).toISOString(),
+          memoryEnabled: request.context?.memoryEnabled ?? true
+        },
+        project: {
+          ...request.context?.projectId !== void 0 ? { projectId: request.context.projectId } : {}
+        },
+        territory: {
+          territoryName: request.context?.territory ?? "Mineral del Monte"
+        },
+        constraints: {
+          ...request.constraints?.maxLatencyMs !== void 0 ? { maxLatencyMs: request.constraints.maxLatencyMs } : {},
+          ...request.constraints?.maxCostUsd !== void 0 ? { maxCostUsd: request.constraints.maxCostUsd } : {},
+          ...request.constraints?.maxSteps !== void 0 ? { maxSteps: request.constraints.maxSteps } : {},
+          requiredCapabilities: request.requestedCapabilities ?? [],
+          forbiddenCapabilities: []
+        }
+      });
+      if (request.context?.memoryEnabled !== false) {
+        const memories = await alphaMemory.retrieve({
+          query: request.intent,
+          scopes: ["session", "project", "territorial"],
+          sensitivityMax: toSensitivityMax(classification.classification),
+          maxResults: 10
+        });
+        for (const mem of memories) {
+          evidence.push({
+            evidenceId: (0, import_node_crypto56.randomUUID)(),
+            type: "data",
+            claim: mem.content,
+            confidence: mem.confidence,
+            source: mem.source,
+            retrievedAt: mem.createdAt
+          });
+        }
+      }
+      const research = await researchEngine.research({
+        query: request.intent,
+        methods: ["lexical", "vector"],
+        maxResults: 5,
+        minRelevance: 0.5
+      });
+      for (const result of research.results) {
+        evidence.push({
+          evidenceId: (0, import_node_crypto56.randomUUID)(),
+          type: "source",
+          claim: result.content,
+          confidence: result.confidence,
+          source: result.source,
+          retrievedAt: result.retrievedAt
+        });
+      }
+      const hypotheses = hypothesisEngine.generate({
+        query: request.intent,
+        researchConfidence: research.overallConfidence,
+        entities: perception.entities,
+        intentCategory: perception.intent
+      });
+      state = "proposal_ready";
+      const proposal = proposalEngine.generate({
+        query: request.intent,
+        intent: perception.intent,
+        hypothesis: hypotheses[0]?.statement ?? request.intent,
+        alternatives: hypotheses[0]?.alternatives ?? [],
+        risks: hypotheses[0]?.risks ?? [],
+        experiments: hypotheses[0]?.experiments ?? [],
+        ...request.constraints !== void 0 ? { constraints: request.constraints } : {}
+      });
+      const risk = riskEngine.assess({
+        intent: request.intent,
+        classification: classification.classification,
+        involvesFinancial: request.mode === "monetization",
+        involvesGovernance: request.mode === "implementation"
+      });
+      state = "beta_evaluating";
+      const governance = policyEngine.evaluate({
+        identity: {
+          actorId: identity.actorId,
+          tenantId: identity.tenantId,
+          roles: identity.roles,
+          scopes: identity.scopes,
+          assuranceLevel: identity.assuranceLevel
+        },
+        risk: {
+          level: risk.level,
+          requiresApproval: risk.requiresApproval
+        },
+        classification: classification.classification,
+        intent: request.intent,
+        requestedCapabilities: request.requestedCapabilities ?? []
+      });
+      if (governance.result === "allow" || governance.result === "review") {
+        const capability = capabilityRegistry.select({
+          intent: request.intent,
+          requestedCapabilities: request.requestedCapabilities ?? [],
+          allowedScopes: identity.scopes,
+          ...request.constraints !== void 0 ? { constraints: request.constraints } : {}
+        });
+        if (capability) {
+          evidence.push({
+            evidenceId: (0, import_node_crypto56.randomUUID)(),
+            type: "data",
+            claim: `Selected capability: ${capability.capabilityId}`,
+            confidence: 0.9,
+            source: "capability_registry",
+            retrievedAt: (/* @__PURE__ */ new Date()).toISOString()
+          });
+        }
+      }
+      state = "verifying";
+      const answer = this.generateAnswer(proposal, perception.intent);
+      const provenance = {
+        auditId: (0, import_node_crypto56.randomUUID)(),
+        requestHash: this.hashString(request.intent),
+        outputHash: this.hashString(answer),
+        policyHash: this.hashString(JSON.stringify(governance)),
+        toolRefs: [],
+        memoryRefs: evidence.map((e) => e.evidenceId),
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const verification = verificationEngine.verify({
+        response: answer,
+        governance,
+        evidence,
+        provenance,
+        costUsd: request.constraints?.maxCostUsd ?? 0,
+        reversible: governance.reversible
+      });
+      state = governance.result === "review" ? "approval_required" : "completed";
+      const telemetry = {
+        traceId: (0, import_node_crypto56.randomUUID)().replace(/-/g, "").slice(0, 32),
+        alpha: {
+          intentConfidence: perception.intentConfidence,
+          memoryHitRate: evidence.length > 0 ? 0.8 : 0,
+          retrievalRelevance: research.overallConfidence,
+          hypothesisCount: hypotheses.length,
+          claimUncertainty: 1 - research.overallConfidence,
+          proposalGenerationMs: Date.now() - startTime2
+        },
+        beta: {
+          policyAllowTotal: governance.result === "allow" ? 1 : 0,
+          policyDenyTotal: governance.result === "deny" ? 1 : 0,
+          reviewRequiredTotal: governance.result === "review" ? 1 : 0,
+          scopeDenialTotal: governance.scopeDenials.length,
+          verificationFailureTotal: verification.checks.filter((c) => !c.passed).length,
+          fallbackTotal: 0
+        },
+        runtime: {
+          modelLatencyMs: Date.now() - startTime2,
+          queueLatencyMs: 0,
+          toolLatencyMs: 0,
+          costUsd: request.constraints?.maxCostUsd ?? 0
+        }
+      };
+      return {
+        requestId: request.requestId,
+        status: governance.result === "review" ? "review_required" : "completed",
+        answer,
+        proposal,
+        governance,
+        evidence,
+        provenance,
+        telemetry,
+        state,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    } catch (error) {
+      state = "degraded";
+      return {
+        requestId: request.requestId,
+        status: "degraded",
+        answer: `Processing error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        governance: {
+          decisionId: (0, import_node_crypto56.randomUUID)(),
+          result: "defer",
+          riskLevel: "R2_moderate",
+          classification: "internal",
+          policyIds: [],
+          reason: "Error during processing",
+          scopeDenials: [],
+          reviewRequired: true,
+          reversible: true,
+          evaluatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        evidence: [],
+        provenance: {
+          auditId: (0, import_node_crypto56.randomUUID)(),
+          requestHash: "",
+          outputHash: "",
+          policyHash: "",
+          toolRefs: [],
+          memoryRefs: [],
+          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        telemetry: {
+          traceId: (0, import_node_crypto56.randomUUID)().replace(/-/g, "").slice(0, 32),
+          alpha: {
+            intentConfidence: 0,
+            memoryHitRate: 0,
+            retrievalRelevance: 0,
+            hypothesisCount: 0,
+            claimUncertainty: 1,
+            proposalGenerationMs: Date.now() - startTime2
+          },
+          beta: {
+            policyAllowTotal: 0,
+            policyDenyTotal: 0,
+            reviewRequiredTotal: 1,
+            scopeDenialTotal: 0,
+            verificationFailureTotal: 1,
+            fallbackTotal: 1
+          },
+          runtime: {
+            modelLatencyMs: Date.now() - startTime2,
+            queueLatencyMs: 0,
+            toolLatencyMs: 0,
+            costUsd: 0
+          }
+        },
+        state,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+  }
+  generateAnswer(proposal, intent) {
+    return `Based on analysis, here is a structured response regarding: ${proposal.problem}
+
+Value: ${proposal.valueProposition}
+
+First deliverable: ${proposal.firstDeliverable}
+
+Alternatives available: ${proposal.alternatives.length}`;
+  }
+  hashString(input) {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      hash = (hash << 5) - hash + input.charCodeAt(i) | 0;
+    }
+    return Math.abs(hash).toString(16).padStart(8, "0");
+  }
+};
+var dualKernel = new DualKernel();
+
+// src/core/runtime/provider-registry.ts
 var SovereignIsabellaProvider = class {
   constructor() {
     this.name = "isabella-sovereign";
@@ -14004,6 +15652,38 @@ var SovereignIsabellaProvider = class {
     );
     return {
       text: result.reply,
+      tokensUsed: Math.ceil(estimatedTokens),
+      model: this.model,
+      provider: this.name
+    };
+  }
+};
+var CognitionIsabellaProvider = class {
+  constructor() {
+    this.name = "isabella-cognition";
+    this.model = "isabella-dual-kernel-v1";
+    this.contextWindowLimit = 32e3;
+    this.supportsTools = true;
+    this.requiresApiKey = false;
+  }
+  async infer(req) {
+    const lastUser = req.messages.filter((m) => m.role === "user").pop();
+    const input = lastUser?.content || "";
+    const result = await dualKernel.process({
+      requestId: createRequestId(),
+      tenantId: "rdm-digital-hub",
+      actorId: "user",
+      federationId: 5,
+      intent: input,
+      mode: "chat",
+      context: { memoryEnabled: true },
+      requestedCapabilities: req.tools ?? []
+    });
+    const estimatedTokens = Math.ceil(
+      (req.systemPrompt.length + req.messages.reduce((s, m) => s + m.content.length, 0) + result.answer.length) / 3.5
+    );
+    return {
+      text: result.answer,
       tokensUsed: Math.ceil(estimatedTokens),
       model: this.model,
       provider: this.name
@@ -14065,6 +15745,7 @@ var GeminiProvider = class {
   }
 };
 var providers = [
+  new CognitionIsabellaProvider(),
   new SovereignIsabellaProvider(),
   new GeminiProvider()
 ];
@@ -14073,8 +15754,10 @@ function resolveRuntimeProvider(preferred) {
     const match = providers.find((p2) => p2.name === preferred);
     if (match) return match;
   }
-  const sovereign = providers.find((p2) => p2.name === "isabella-sovereign");
+  const sovereign = providers.find((p2) => p2.name === "isabella-cognition");
   if (sovereign) return sovereign;
+  const legacySovereign = providers.find((p2) => p2.name === "isabella-sovereign");
+  if (legacySovereign) return legacySovereign;
   if (process.env.GEMINI_API_KEY) {
     const gemini = providers.find((p2) => p2.name === "gemini");
     if (gemini) return gemini;
@@ -14085,7 +15768,7 @@ function listProviders() {
   return providers.map((p2) => ({
     name: p2.name,
     model: p2.model,
-    available: p2.name === "isabella-sovereign" || (p2.requiresApiKey ? !!process.env.GEMINI_API_KEY : true)
+    available: p2.name === "isabella-sovereign" || p2.name === "isabella-cognition" || (p2.requiresApiKey ? !!process.env.GEMINI_API_KEY : true)
   }));
 }
 
@@ -14265,13 +15948,13 @@ function estimateTokens(messages) {
 }
 
 // src/governance/audit-receipt.ts
-var import_node_crypto48 = require("node:crypto");
+var import_node_crypto57 = require("node:crypto");
 var receiptLog = [];
 var MAX_RECEIPTS = 1e4;
 function auditReceipt(params) {
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
   const receipt = {
-    receiptId: (0, import_node_crypto48.randomUUID)(),
+    receiptId: (0, import_node_crypto57.randomUUID)(),
     action: params.action,
     actor: params.actor,
     tenantId: params.tenantId,
@@ -14287,7 +15970,7 @@ function auditReceipt(params) {
     timestamp
   };
   const hashInput = `${receipt.action}:${receipt.actor}:${receipt.tenantId}:${receipt.riskLevel}:${receipt.timestamp}`;
-  receipt.hash = (0, import_node_crypto48.createHash)("sha256").update(hashInput).digest("hex");
+  receipt.hash = (0, import_node_crypto57.createHash)("sha256").update(hashInput).digest("hex");
   receiptLog.push(receipt);
   if (receiptLog.length > MAX_RECEIPTS) receiptLog.splice(0, receiptLog.length - MAX_RECEIPTS);
   return receipt;
@@ -14320,7 +16003,7 @@ function getOrCreateSession(req) {
     if (existing) return existing;
   }
   const session = {
-    sessionId: (0, import_node_crypto49.randomUUID)(),
+    sessionId: (0, import_node_crypto58.randomUUID)(),
     tenantId: req.tenantId,
     userId: req.userId,
     messages: [],
@@ -14452,12 +16135,12 @@ function listSessions(tenantId) {
 }
 
 // src/core/planner/planner.ts
-var import_node_crypto50 = require("node:crypto");
+var import_node_crypto59 = require("node:crypto");
 var plans = /* @__PURE__ */ new Map();
 var MAX_PLANS = 200;
 function createPlan(params) {
   const plan = {
-    planId: (0, import_node_crypto50.randomUUID)(),
+    planId: (0, import_node_crypto59.randomUUID)(),
     tenantId: params.tenantId,
     userId: params.userId,
     name: params.name,
@@ -14465,7 +16148,7 @@ function createPlan(params) {
     goal: params.goal,
     status: "draft",
     steps: params.steps.map((s, i) => ({
-      stepId: `step-${i + 1}-${(0, import_node_crypto50.randomUUID)().slice(0, 8)}`,
+      stepId: `step-${i + 1}-${(0, import_node_crypto59.randomUUID)().slice(0, 8)}`,
       name: s.name,
       description: s.description,
       action: s.action,
@@ -14498,7 +16181,7 @@ function activatePlan(planId) {
 }
 
 // src/core/skills/skill-registry.ts
-var import_node_crypto51 = require("node:crypto");
+var import_node_crypto60 = require("node:crypto");
 var skills = /* @__PURE__ */ new Map();
 var MAX_SKILLS = 100;
 function registerSkill(params) {
@@ -14515,7 +16198,7 @@ function registerSkill(params) {
     return updated;
   }
   const skill = {
-    skillId: (0, import_node_crypto51.randomUUID)(),
+    skillId: (0, import_node_crypto60.randomUUID)(),
     name: params.name,
     version: params.version,
     description: params.description,
@@ -14650,7 +16333,7 @@ function exportUserData(tenantId, userId) {
 }
 
 // src/core/ingress/ingress-distributor.ts
-var import_node_crypto52 = require("node:crypto");
+var import_node_crypto61 = require("node:crypto");
 var ROUTING_TABLE = {
   "user.action": ["orchestrator", "audit-receipt", "bookpi-legacy"],
   "user.query": ["orchestrator", "context-compressor", "audit-receipt", "bookpi-legacy"],
@@ -14763,7 +16446,7 @@ async function deliverToRoute(route, packet) {
 }
 function ingestPacket(params) {
   const packet = {
-    packetId: (0, import_node_crypto52.randomUUID)(),
+    packetId: (0, import_node_crypto61.randomUUID)(),
     source: params.source,
     tenantId: params.tenantId,
     userId: params.userId,
@@ -14771,7 +16454,7 @@ function ingestPacket(params) {
     payload: params.payload,
     priority: params.priority || "medium",
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    traceId: `trace-${Date.now()}-${(0, import_node_crypto52.randomUUID)().slice(0, 8)}`,
+    traceId: `trace-${Date.now()}-${(0, import_node_crypto61.randomUUID)().slice(0, 8)}`,
     routes: ROUTING_TABLE[params.dataType] || DEFAULT_ROUTES
   };
   totalIngested++;
@@ -14841,7 +16524,7 @@ function getRoutingTable() {
 }
 
 // src/core/ingress/health-monitor.ts
-var import_node_crypto53 = require("node:crypto");
+var import_node_crypto62 = require("node:crypto");
 var allModules = [
   "orchestrator",
   "prompt-builder",
@@ -14893,7 +16576,7 @@ function heartbeat(moduleId) {
   moduleHealth.set(moduleId, updated);
   if (prevLevel !== "green" && updated.alertLevel === "green") {
     const recovery = {
-      alertId: (0, import_node_crypto53.randomUUID)(),
+      alertId: (0, import_node_crypto62.randomUUID)(),
       moduleId,
       previousLevel: prevLevel,
       newLevel: "green",
@@ -14914,7 +16597,7 @@ function heartbeat(moduleId) {
         previousLevel: prevLevel
       }, {
         traceId: `health-${Date.now()}`,
-        requestId: (0, import_node_crypto53.randomUUID)(),
+        requestId: (0, import_node_crypto62.randomUUID)(),
         tenantId: "system",
         subjectId: "health-monitor",
         originCore: 0
@@ -16759,7 +18442,7 @@ app.post("/api/v1/economy/transactions", rateLimit, authenticate, (req, res) => 
       createdFrom: "api",
       evidenceIds: [],
       auditTrailId: (0, import_crypto.randomUUID)(),
-      contentHash: (0, import_node_crypto54.createHash)("sha256").update(`${principal.sub}:${amount}:${Date.now()}`).digest("hex")
+      contentHash: (0, import_node_crypto63.createHash)("sha256").update(`${principal.sub}:${amount}:${Date.now()}`).digest("hex")
     }
   });
   const verdict = evaluatePolicy2(event);
